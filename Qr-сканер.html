@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR-Сканер</title>
+    <style>
+        :root {
+            --primary-color: #000;
+            --secondary-color: #f5f5f5;
+            --accent-color: #333;
+            --text-color: #333;
+            --light-text: #666;
+            --border-color: #ddd;
+            --hover-color: #f9f9f9;
+            --active-color: #e9e9e9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Responsive design for different devices */
+        @media screen and (min-width: 1600px) {
+            body {
+                width: 1600px;
+                margin: 0 auto;
+                min-height: 1200px;
+            }
+        }
+
+        @media screen and (max-width: 1366px) and (min-width: 481px) {
+            body {
+                width: 1366px;
+                margin: 0 auto;
+                min-height: 768px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            body {
+                width: 480px;
+                margin: 0 auto;
+                min-height: 800px;
+            }
+        }
+
+        /* Common styles */
+        .container {
+            max-width: 100%;
+            padding: 20px;
+            background-color: var(--secondary-color);
+            min-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-radius: 0;
+            margin: -20px -20px 20px -20px;
+            width: calc(100% + 40px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+
+        .logo img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .page-title {
+            text-align: center;
+            margin: 30px 0;
+            font-size: 28px;
+            color: var(--text-color);
+        }
+
+        /* Main Page Styles */
+        .main-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            flex-grow: 1;
+        }
+
+        .main-header {
+            text-align: center;
+            margin-bottom: 60px;
+            margin-top: 40px;
+        }
+
+        .main-header h1 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .main-header p {
+            font-size: 18px;
+            color: var(--light-text);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        .section-title {
+            text-align: center;
+            margin: 50px 0 40px 0;
+            font-size: 28px;
+            color: var(--text-color);
+            font-weight: bold;
+        }
+
+        .features-section {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .feature-card {
+            background-color: white;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 350px;
+            min-height: 250px;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 25px;
+            color: var(--text-color);
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .feature-card ul {
+            list-style-type: none;
+        }
+
+        .feature-card li {
+            margin-bottom: 15px;
+            padding-left: 25px;
+            position: relative;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .feature-card li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 25px;
+            margin-top: 60px;
+            justify-content: center;
+        }
+
+        .cta-button {
+            padding: 16px 40px;
+            border-radius: 30px;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .cta-button:hover {
+            background-color: var(--accent-color);
+            transform: translateY(-2px);
+        }
+
+        .cta-button.secondary {
+            background-color: white;
+            color: var(--text-color);
+            border: 2px solid var(--border-color);
+        }
+
+        .cta-button.secondary:hover {
+            background-color: var(--hover-color);
+        }
+
+        /* Login/Register Page Styles */
+        .auth-container {
+            max-width: 500px;
+            margin: 30px auto;
+            padding: 40px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            flex-grow: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .auth-tabs {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--border-color);
+            position: relative;
+        }
+
+        .auth-tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .auth-tab.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .auth-tab.inactive {
+            color: var(--light-text);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-label {
+            font-size: 16px;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        .form-input {
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            width: 100%;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            cursor: pointer;
+            background-color: white;
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--light-text);
+            font-size: 12px;
+        }
+
+        .submit-btn {
+            margin-top: 25px;
+            padding: 14px;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .submit-btn:hover {
+            background-color: var(--accent-color);
+        }
+
+        .success-message {
+            margin-top: 25px;
+            padding: 12px;
+            background-color: #d4edda;
+            color: #155724;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+
+        /* Student Dashboard Styles */
+        .student-dashboard {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .welcome-section {
+            margin-bottom: 35px;
+        }
+
+        .welcome-section h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+
+        .welcome-section p {
+            font-size: 18px;
+            color: var(--light-text);
+            margin-bottom: 15px;
+        }
+
+        .schedule-section {
+            margin-bottom: 30px;
+            flex-grow: 1;
+        }
+
+        .schedule-section h3 {
+            font-size: 22px;
+            margin-bottom: 25px;
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        .classes-container {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 15px 5px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--secondary-color);
+        }
+
+        .class-card {
+            background-color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            min-width: 300px;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 140px;
+        }
+
+        .class-card h4 {
+            margin-bottom: 20px;
+            color: var(--text-color);
+            font-size: 16px;
+            line-height: 1.4;
+            flex-grow: 1;
+        }
+
+        .class-time {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .time-slot {
+            font-size: 14px;
+            color: var(--light-text);
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .mark-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            text-align: center;
+            white-space: nowrap;
+            min-width: 90px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mark-btn:hover {
+            background-color: var(--primary-color);
+        }
+
+        /* Navigation Menu Styles */
+        .nav-menu {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 0;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .nav-item {
+            padding: 8px 16px;
+            border-radius: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .nav-item.active {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+
+        .nav-item:hover {
+            background-color: var(--hover-color);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-color);
+            border-radius: 10px;
+            margin: 0 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 10px;
+            border: 2px solid var(--secondary-color);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+
+        @media screen and (max-width: 768px) {
+            .classes-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .class-card {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Page -->
+    <div id="main-page" class="container main-page" style="display: block;">
+        <div class="header">
+            <div class="logo" onclick="showMainPage()">
+                <img src="https://foni.papik.pro/uploads/posts/2024-09/foni-papik-pro-0vh9-p-kartinki-qr-kod-na-prozrachnom-fone-3.png" alt="QR Logo">
+                <h1>QR-Сканер</h1>
+            </div>
+            <div class="nav-buttons">
+                <!-- Removed "Войти" button from header as requested -->
+            </div>
+        </div>
+
+        <div class="main-header">
+            <h1>QR-Сканер</h1>
+            <p>Умная система отслеживания посещаемости занятий</p>
+        </div>
+
+        <div class="section-title">Как мы упрощаем учет посещаемости?</div>
+
+        <div class="features-section">
+            <div class="feature-card">
+                <h3>Для студентов:</h3>
+                <ul>
+                    <li>Отмечайтесь за 5 секунд через телефон</li>
+                    <li>Смотрите свою историю посещений</li>
+                    <li>Не беспокойтесь о потерянных записях</li>
+                    <li>Все данные всегда под рукой</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <h3>Для преподавателей:</h3>
+                <ul>
+                    <li>Создавайте QR-код для занятия за 2 клика</li>
+                    <li>Видите, кто отметилcя, в реальном времени</li>
+                    <li>Скачивайте отчеты в Excel для деканата</li>
+                    <li>Исправляйте ошибки в журнале когда нужно</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="cta-buttons">
+            <button class="cta-button" onclick="showLoginPage()">Войти</button>
+            <button class="cta-button secondary" onclick="showRegisterPage()">Зарегистрироваться</button>
+        </div>
+    </div>
+
+    <!-- Login/Register Page -->
+    <div id="login-page" class="container" style="display: none;">
+        <div class="header">
+            <div class="logo" onclick="showMainPage()">
+                <img src="https://foni.papik.pro/uploads/posts/2024-09/foni-papik-pro-0vh9-p-kartinki-qr-kod-na-prozrachnom-fone-3.png" alt="QR Logo">
+                <h1>QR-Сканер</h1>
+            </div>
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" onclick="showMainPage()">Назад</button>
+            </div>
+        </div>
+
+        <div class="auth-container">
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="login-tab" onclick="switchToLogin()">Вход</div>
+                <div class="auth-tab inactive" id="register-tab" onclick="switchToRegister()">Регистрация</div>
+            </div>
+
+            <div class="auth-form">
+                <!-- Role selection for both login and registration -->
+                <div class="form-group">
+                    <label class="form-label">Кто вы?</label>
+                    <div class="select-wrapper">
+                        <select id="user-role" onchange="toggleGroupField()">
+                            <option value="student">Студент</option>
+                            <option value="teacher">Преподаватель</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Group field - shown only for students -->
+                <div class="form-group" id="group-field">
+                    <label class="form-label">Группа</label>
+                    <input type="text" class="form-input" id="group" placeholder="Введите вашу группу">
+                </div>
+
+                <!-- Name and password fields - always visible -->
+                <div class="form-group">
+                    <label class="form-label">Имя и фамилия</label>
+                    <input type="text" class="form-input" id="fullname" placeholder="Введите ваше имя и фамилию">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Пароль</label>
+                    <input type="password" class="form-input" id="password" placeholder="Введите пароль">
+                </div>
+
+                <button class="submit-btn" id="auth-submit" onclick="authenticateUser()">Войти</button>
+            </div>
+
+            <div class="success-message" id="success-message">
+                Вы успешно зарегистрировались!
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Dashboard Page -->
+    <div id="student-dashboard" class="container student-dashboard" style="display: none;">
+        <div class="header">
+            <div class="logo" onclick="showMainPage()">
+                <img src="https://foni.papik.pro/uploads/posts/2024-09/foni-papik-pro-0vh9-p-kartinki-qr-kod-na-prozrachnom-fone-3.png" alt="QR Logo">
+                <h1>QR-Сканер</h1>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-item active">Главная</div>
+                <div class="nav-item">Посещаемость</div>
+                <div class="nav-item">Расписание</div>
+                <div class="nav-item">Отметиться</div>
+            </div>
+        </div>
+
+        <div class="welcome-section">
+            <h2>Добро пожаловать, <span id="student-name">Иван</span>!</h2>
+            <p>Группа <span id="student-group">Д-Э 309</span></p>
+        </div>
+
+        <div class="schedule-section">
+            <h3>Ближайшие занятия на сегодня (<span id="current-date">чт, 30.10</span>):</h3>
+            <div class="classes-container">
+                <div class="class-card">
+                    <h4>Основы российской государственности</h4>
+                    <div class="class-time">
+                        <span class="time-slot">9:00 - 10:35</span>
+                        <button class="mark-btn">Отметиться</button>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <h4>Основы технологии производства продукции растениеводства</h4>
+                    <div class="class-time">
+                        <span class="time-slot">10:55 - 11:30</span>
+                        <button class="mark-btn">Отметиться</button>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <h4>Теоретические основы информатики</h4>
+                    <div class="class-time">
+                        <span class="time-slot">13:00 - 14:30</span>
+                        <button class="mark-btn">Отметиться</button>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <h4>Иностранный язык</h4>
+                    <div class="class-time">
+                        <span class="time-slot">14:55 - 16:30</span>
+                        <button class="mark-btn">Отметиться</button>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <h4>Математический анализ</h4>
+                    <div class="class-time">
+                        <span class="time-slot">16:45 - 18:20</span>
+                        <button class="mark-btn">Отметиться</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard Page (placeholder) -->
+    <div id="teacher-dashboard" class="container student-dashboard" style="display: none;">
+        <div class="header">
+            <div class="logo" onclick="showMainPage()">
+                <img src="https://foni.papik.pro/uploads/posts/2024-09/foni-papik-pro-0vh9-p-kartinki-qr-kod-na-prozrachnom-fone-3.png" alt="QR Logo">
+                <h1>QR-Сканер</h1>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-item active">Главная</div>
+                <div class="nav-item">Посещаемость</div>
+                <div class="nav-item">Расписание</div>
+                <div class="nav-item">Создать QR</div>
+            </div>
+        </div>
+
+        <div class="welcome-section">
+            <h2>Добро пожаловать, <span id="teacher-name">Иван</span>!</h2>
+            <p>Преподаватель кафедры информационных технологий</p>
+        </div>
+
+        <div class="schedule-section">
+            <h3>Ваши занятия на сегодня (<span id="teacher-date">чт, 30.10</span>):</h3>
+            <div class="classes-container">
+                <div class="class-card">
+                    <h4>Теоретические основы информатики</h4>
+                    <div class="class-time">
+                        <span class="time-slot">13:00 - 14:30</span>
+                        <button class="mark-btn">Создать QR</button>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <h4>Иностранный язык</h4>
+                    <div class="class-time">
+                        <span class="time-slot">14:55 - 16:30</span>
+                        <button class="mark-btn">Создать QR</button>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <h4>Программирование</h4>
+                    <div class="class-time">
+                        <span class="time-slot">16:45 - 18:20</span>
+                        <button class="mark-btn">Создать QR</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables to store user data
+        let currentUser = null;
+        let currentRole = 'student';
+
+        // Function to toggle group field based on role selection
+        function toggleGroupField() {
+            const role = document.getElementById('user-role').value;
+            const groupField = document.getElementById('group-field');
+            
+            if (role === 'teacher') {
+                groupField.style.display = 'none';
+            } else {
+                groupField.style.display = 'flex';
+            }
+        }
+
+        // Function to show main page
+        function showMainPage() {
+            document.getElementById('main-page').style.display = 'flex';
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('student-dashboard').style.display = 'none';
+            document.getElementById('teacher-dashboard').style.display = 'none';
+        }
+
+        // Function to show login page
+        function showLoginPage() {
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('login-page').style.display = 'flex';
+            document.getElementById('student-dashboard').style.display = 'none';
+            document.getElementById('teacher-dashboard').style.display = 'none';
+            
+            // Reset form
+            resetAuthForm();
+            switchToLogin();
+        }
+
+        // Function to show register page
+        function showRegisterPage() {
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('login-page').style.display = 'flex';
+            document.getElementById('student-dashboard').style.display = 'none';
+            document.getElementById('teacher-dashboard').style.display = 'none';
+            
+            // Reset form
+            resetAuthForm();
+            switchToRegister();
+        }
+
+        // Function to switch to login tab
+        function switchToLogin() {
+            document.getElementById('login-tab').classList.add('active');
+            document.getElementById('login-tab').classList.remove('inactive');
+            document.getElementById('register-tab').classList.add('inactive');
+            document.getElementById('register-tab').classList.remove('active');
+            document.getElementById('auth-submit').textContent = 'Войти';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        // Function to switch to register tab
+        function switchToRegister() {
+            document.getElementById('login-tab').classList.add('inactive');
+            document.getElementById('login-tab').classList.remove('active');
+            document.getElementById('register-tab').classList.add('active');
+            document.getElementById('register-tab').classList.remove('inactive');
+            document.getElementById('auth-submit').textContent = 'Зарегистрироваться';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        // Function to authenticate user
+        function authenticateUser() {
+            const role = document.getElementById('user-role').value;
+            const group = document.getElementById('group') ? document.getElementById('group').value.trim() : '';
+            const fullname = document.getElementById('fullname').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!fullname || !password) {
+                alert('Пожалуйста, заполните все поля');
+                return;
+            }
+
+            // Check if we're in registration mode
+            if (document.getElementById('auth-submit').textContent === 'Зарегистрироваться') {
+                if (role === 'student' && !group) {
+                    alert('Пожалуйста, укажите вашу группу');
+                    return;
+                }
+                
+                // Registration successful
+                currentUser = {
+                    name: fullname,
+                    group: group,
+                    role: role
+                };
+                
+                // Show success message
+                document.getElementById('success-message').style.display = 'block';
+                
+                // After 2 seconds, switch to login form
+                setTimeout(() => {
+                    switchToLogin();
+                    document.getElementById('success-message').style.display = 'none';
+                    document.getElementById('fullname').value = '';
+                    document.getElementById('password').value = '';
+                    if (document.getElementById('group')) {
+                        document.getElementById('group').value = '';
+                    }
+                }, 2000);
+            } else {
+                // Login successful
+                currentUser = {
+                    name: fullname,
+                    group: group || 'Д-Э 309', // Default group if not provided
+                    role: role
+                };
+                
+                // Redirect based on role
+                if (role === 'student') {
+                    showStudentDashboard();
+                } else {
+                    showTeacherDashboard();
+                }
+            }
+        }
+
+        // Function to show student dashboard
+        function showStudentDashboard() {
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('student-dashboard').style.display = 'flex';
+            document.getElementById('teacher-dashboard').style.display = 'none';
+            
+            // Update welcome message with user's name and group
+            if (currentUser) {
+                document.getElementById('student-name').textContent = currentUser.name.split(' ')[0];
+                document.getElementById('student-group').textContent = currentUser.group;
+            }
+            
+            // Update date
+            updateCurrentDate();
+        }
+
+        // Function to show teacher dashboard
+        function showTeacherDashboard() {
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('student-dashboard').style.display = 'none';
+            document.getElementById('teacher-dashboard').style.display = 'flex';
+            
+            // Update welcome message with user's name
+            if (currentUser) {
+                document.getElementById('teacher-name').textContent = currentUser.name.split(' ')[0];
+            }
+            
+            // Update date
+            updateCurrentDate();
+        }
+
+        // Function to reset auth form
+        function resetAuthForm() {
+            document.getElementById('user-role').value = 'student';
+            if (document.getElementById('group')) {
+                document.getElementById('group').value = '';
+            }
+            document.getElementById('fullname').value = '';
+            document.getElementById('password').value = '';
+            toggleGroupField(); // Ensure group field is visible for students
+        }
+
+        // Function to update current date
+        function updateCurrentDate() {
+            const now = new Date();
+            const days = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+            const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+            
+            const dayName = days[now.getDay()];
+            const day = now.getDate();
+            const month = months[now.getMonth()];
+            
+            const dateString = `${dayName}, ${day}.${month}`;
+            
+            // Update both student and teacher pages
+            const studentDateElement = document.getElementById('current-date');
+            if (studentDateElement) {
+                studentDateElement.textContent = dateString;
+            }
+            
+            const teacherDateElement = document.getElementById('teacher-date');
+            if (teacherDateElement) {
+                teacherDateElement.textContent = dateString;
+            }
+        }
+
+    </script>
+</body>
+</html>
