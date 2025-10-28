@@ -1,10 +1,13 @@
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import render_template, request, redirect, url_for, flash
-from flask_login import UserMixin
+from flask_login import UserMixin, LoginManager,login_required, current_user
+
+
+from datetime import date
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-secret-key'
@@ -24,6 +27,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='student')  # 'student' или 'teacher'
+    group = db.Column(db.String(50))  #  (может быть NULL для преподавателей)
     def set_password(self, password):
      self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
     def check_password(self, password):
@@ -49,6 +53,7 @@ def register():
         username = request.form['username']
         password = request.form['password']
         role = request.form.get('role', 'student')
+        group = request.form.get('group') if role == 'student' else None  # ← только для студентов
 
         if User.query.filter_by(username=username).first():
             flash('Пользователь уже существует')
@@ -81,14 +86,19 @@ def login():
         if user and user.check_password(password):
             from flask_login import login_user
             login_user(user)
-            return redirect(url_for('dashboard'))
+            if user.role == 'teacher':
+                return redirect(url_for('lectures'))  # ← преподаватель → занятия
+            else:
+                return redirect(url_for('dashboard'))  # ← студент → кабинет
         flash('Неверный логин или пароль')
+    
     return '''
     <form method="post">
         Логин: <input name="username"><br>
         Пароль: <input name="password" type="password"><br>
         <button>Войти</button>
     </form>
+    <p>Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
     '''
 
 @app.route('/dashboard')
@@ -104,16 +114,44 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/lectures')
+@login_required
+def lectures():
+    if current_user.role == 'teacher':
+        lecture_list = Lecture.query.filter_by(teacher_id=current_user.id).all()
+    else:
+        lecture_list = []  # студенты пока не видят занятия
+    return render_template('lectures.html', lectures=lecture_list)
+
+@app.route('/create_lecture', methods=['GET', 'POST'])
+@login_required
+def create_lecture():
+    if current_user.role != 'teacher':
+        return "Доступ запрещён", 403
+
+    if request.method == 'POST':
+        lecture = Lecture(
+            subject=request.form['subject'],
+            group=request.form['group'],
+            date=request.form['date'],
+            teacher_id=current_user.id
+        )
+        db.session.add(lecture)
+        db.session.commit()
+        return redirect(url_for('lectures'))
+
+    return render_template('create_lecture.html', today=date.today())
+
 # Создание БД
 with app.app_context():
     db.create_all()
-    print("✅ Таблицы созданы!")
+    print(" Таблицы созданы!")
 
 
 
 @app.route('/')
 def home():
-    return "<h1>Система посещаемости запущена!</h1><p><a href='/register'>Регистрация</a> | <a href='/login'>Вход</a></p>"
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
