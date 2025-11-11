@@ -2,8 +2,10 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, send_file
 from flask_login import UserMixin, LoginManager,login_required, current_user
+import qrcode
+from io import BytesIO
 
 
 from datetime import date
@@ -37,6 +39,7 @@ class Lecture(db.Model):
     subject = db.Column(db.String(100), nullable=False)
     group = db.Column(db.String(50), nullable=False)
     date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.Time, nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 class Attendance(db.Model):
@@ -46,67 +49,72 @@ class Attendance(db.Model):
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        role = request.form.get('role', 'student')
-        group = request.form.get('group') if role == 'student' else None  # ← только для студентов
-
-        if User.query.filter_by(username=username).first():
-            flash('Пользователь уже существует')
-            return redirect(url_for('register'))
-
-        user = User(username=username, role=role)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        flash('Регистрация успешна!')
-        return redirect(url_for('login'))
-    return '''
-    <form method="post">
-        Логин: <input name="username"><br>
-        Пароль: <input name="password" type="password"><br>
-        Роль: <select name="role">
-            <option value="student">Студент</option>
-            <option value="teacher">Преподаватель</option>
-        </select><br>
-        <button>Зарегистрироваться</button>
-    </form>
-    '''
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import login_user
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            from flask_login import login_user
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        role = request.form.get('role', 'student')
+
+        if not username or not password:
+            flash('Пожалуйста, заполните все поля', 'error')
+            return render_template('auth.html', mode='login')
+
+        user = User.query.filter_by(username=username, role=role).first()
+
+        if not user:
+            flash('Пользователь с таким логином не найден', 'error')
+        elif not user.check_password(password):
+            flash('Пароль введён неверно', 'error')
+        else:
             login_user(user)
-            if user.role == 'teacher':
-                return redirect(url_for('lectures'))  # ← преподаватель → занятия
-            else:
-                return redirect(url_for('dashboard'))  # ← студент → кабинет
-        flash('Неверный логин или пароль')
+            return redirect(url_for('lectures' if user.role == 'teacher' else 'dashboard'))
+
+    return render_template('auth.html', mode='login')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        role = request.form.get('role', 'student')  # ← исправлено
+        group = request.form.get('group') if role == 'student' else None
+
+        # Валидация обязательных полей
+        if not username or not password:
+            flash('Пожалуйста, заполните все поля', 'error')
+            return render_template('auth.html', mode='register')
+
+        # Проверка: студент должен указать группу
+        if role == 'student' and not group:
+            flash('Студенты должны указать группу', 'error')
+            return render_template('auth.html', mode='register')
+
+        try:
+            user = User(username=username, role=role, group=group)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            flash('Регистрация успешна! Теперь вы можете войти.', 'success')
+            return redirect(url_for('login'))
+        except IntegrityError:
+            db.session.rollback()  # отменяем транзакцию
+            flash(f'Пользователь с логином «{username}» уже существует', 'error')
+            return render_template('auth.html', mode='register')
+
+    return render_template('auth.html', mode='register')
     
-    return '''
-    <form method="post">
-        Логин: <input name="username"><br>
-        Пароль: <input name="password" type="password"><br>
-        <button>Войти</button>
-    </form>
-    <p>Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
-    '''
 
 @app.route('/dashboard')
 def dashboard():
     from flask_login import current_user
     if not current_user.is_authenticated:
         return redirect(url_for('login'))
-    return f"<h1>Привет, {current_user.username} ({current_user.role})!</h1><a href='/logout'>Выйти</a>"
+    return render_template('student.html')
 
 @app.route('/logout')
 def logout():
@@ -121,7 +129,7 @@ def lectures():
         lecture_list = Lecture.query.filter_by(teacher_id=current_user.id).all()
     else:
         lecture_list = []  # студенты пока не видят занятия
-    return render_template('lectures.html', lectures=lecture_list)
+    return render_template('teacher.html', lectures=lecture_list)
 
 @app.route('/create_lecture', methods=['GET', 'POST'])
 @login_required
@@ -134,6 +142,7 @@ def create_lecture():
             subject=request.form['subject'],
             group=request.form['group'],
             date=request.form['date'],
+            time = request.form['time'],
             teacher_id=current_user.id
         )
         db.session.add(lecture)
@@ -141,6 +150,39 @@ def create_lecture():
         return redirect(url_for('lectures'))
 
     return render_template('create_lecture.html', today=date.today())
+
+import qrcode
+from io import BytesIO
+from flask import send_file
+
+@app.route('/lecture/<int:lecture_id>')
+@login_required
+def lecture_qr(lecture_id):
+    # Только для преподавателя
+    if current_user.role != 'teacher':
+        return "Доступ запрещён", 403
+
+    # Проверяем, что занятие принадлежит текущему преподавателю
+    lecture = Lecture.query.filter_by(
+        id=lecture_id,
+        teacher_id=current_user.id
+    ).first_or_404()
+
+    # Генерируем URL для сканирования (на реальном сайте — с доменом)
+    # Пока — локальный URL
+    qr_data = f"http://localhost:5000/scan?lecture_id={lecture_id}"
+
+    # Создаём QR-код
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Отправляем как изображение
+    buf = BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png')
 
 # Создание БД
 with app.app_context():
@@ -151,7 +193,7 @@ with app.app_context():
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('index2.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

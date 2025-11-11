@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Главная — QR-Сканер{% endblock %}
+
+{% block content %}
+<div class="main-page">
+
+    <div class="main-header">
+        <h1>QR-Сканер</h1>
+        <p>Умная система отслеживания посещаемости занятий</p>
+    </div>
+
+    <div class="section-title">Как мы упрощаем учет посещаемости?</div>
+
+    <div class="features-section">
+        <div class="feature-card">
+            <h3>Для студентов:</h3>
+            <ul>
+                <li>Отмечайтесь за 5 секунд через телефон</li>
+                <li>Смотрите свою историю посещений</li>
+                <li>Не беспокойтесь о потерянных записях</li>
+                <li>Все данные всегда под рукой</li>
+            </ul>
+        </div>
+        <div class="feature-card">
+            <h3>Для преподавателей:</h3>
+            <ul>
+                <li>Создавайте QR-код для занятия за 2 клика</li>
+                <li>Видите, кто отметилcя, в реальном времени</li>
+                <li>Скачивайте отчеты в Excel для деканата</li>
+                <li>Исправляйте ошибки в журнале когда нужно</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="cta-buttons">
+        <a href="/login" class="cta-button">Войти</a>
+        <a href="/register" class="cta-button secondary">Зарегистрироваться</a>
+    </div>
+</div>
+{% endblock %}

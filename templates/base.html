@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}QR-Сканер{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Единая шапка для всех страниц -->
+        <div class="header">
+            <div class="logo" onclick="window.location.href='/'">
+                <img src="https://foni.papik.pro/uploads/posts/2024-09/foni-papik-pro-0vh9-p-kartinki-qr-kod-na-prozrachnom-fone-3.png" alt="QR Logo">
+                <h1>QR-Сканер</h1>
+            </div>
+            <!-- Блок, который можно переопределять на разных страницах -->
+            {% block header_content %}
+                <!-- По умолчанию — пусто (например, на главной) -->
+            {% endblock %}
+        </div>
+
+        <!-- Основной контент страницы -->
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

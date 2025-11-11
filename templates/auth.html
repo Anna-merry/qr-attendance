@@ -1,0 +1,73 @@
+<!-- templates/auth.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ 'Регистрация' if mode == 'register' else 'Вход' }} — QR-Сканер{% endblock %}
+
+{% block header_content %}
+<div class="nav-buttons">
+    <a href="{{ url_for('home') }}" class="btn btn-secondary">Назад</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+
+    <div class="auth-container">
+        <!-- Вкладки остаются, но теперь они — ссылки на разные URL -->
+        <div class="auth-tabs">
+            <a href="{{ url_for('login') }}" class="auth-tab {% if mode == 'login' %}active{% else %}inactive{% endif %}">Вход</a>
+            <a href="{{ url_for('register') }}" class="auth-tab {% if mode == 'register' %}active{% else %}inactive{% endif %}">Регистрация</a>
+        </div>
+
+        <form method="POST" class="auth-form">
+            
+            <div class="form-group">
+                <label class="form-label">Кто вы?</label>
+                <div class="select-wrapper">
+                    <select name="role" id="user-role" onchange="toggleGroupField()">
+                        <option value="student" {% if request.form.role == 'student' or (mode == 'register' and not request.form) %}selected{% endif %}>Студент</option>
+                        <option value="teacher" {% if request.form.role == 'teacher' %}selected{% endif %}>Преподаватель</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" id="group-field" {% if request.form.role != 'student' and (mode == 'login' or (mode == 'register' and not request.form)) %}style="display:none"{% endif %}>
+                <label class="form-label">Группа</label>
+                <input type="text" name="group" class="form-input" value="{{ request.form.group or '' }}" placeholder="Введите вашу группу">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Имя и фамилия</label>
+                <input type="text" name="username"  class="form-input" value="{{ request.form.fullname or '' }}" placeholder="Введите ваше имя и фамилию" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Пароль</label>
+                <input type="password" name="password" class="form-input" placeholder="Введите пароль" required>
+            </div>
+
+            <button type="submit" class="submit-btn">
+                {% if mode == 'register' %}Зарегистрироваться{% else %}Войти{% endif %}
+            </button>
+        </form>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="success-message" style="display:block; margin-top: 20px;">
+                    {% for msg in messages %}
+                        {{ msg }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+    </div>
+</div>
+
+<script>
+function toggleGroupField() {
+    const role = document.getElementById('user-role').value;
+    const groupField = document.getElementById('group-field');
+    groupField.style.display = (role === 'student') ? 'flex' : 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+
+{% extends "base.html" %}
+
+
+{% block header_content %}
+<div class="nav-menu">
+            <div class="nav-item active">Главная</div>
+            <div class="nav-item">Посещаемость</div>
+            <div class="nav-item">Расписание</div>
+            <div class="nav-item">Отметиться</div>
+        </div>
+{% endblock %}      
+{% block content %}
+<div class="dashboard student-dashboard">
+    <div class="welcome-section">
+        <h2>Добро пожаловать, {{ current_user.username.split()[0] }}!</h2>
+        <p>Группа {{ current_user.group }}</p>
+    </div>
+
+    <div class="schedule-section">
+        <h3>Ближайшие занятия на сегодня (<span id="current-date">чт, 30.10</span>):</h3>
+        <div class="classes-container">
+            {% for lesson in lessons %}
+            <div class="class-card">
+                <h4>{{ lesson.title }}</h4>
+                <div class="class-time">
+                    <span class="time-slot">{{ lesson.time }}</span>
+                    <button class="mark-btn" onclick="alert('QR-сканер активирован! Наведите камеру телефона на QR-код.')">Отметиться</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Обновление даты (можно оставить или вынести в JS-файл)
+function updateCurrentDate() {
+    const now = new Date();
+    const days = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+    const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    const dateString = `${days[now.getDay()]}, ${now.getDate()}.${months[now.getMonth()]}`;
+    document.getElementById('current-date').textContent = dateString;
+}
+updateCurrentDate();
+</script>
+{% endblock %}
