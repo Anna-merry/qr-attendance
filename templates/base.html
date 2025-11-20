@@ -23,5 +23,21 @@
         <!-- Основной контент страницы -->
         {% block content %}{% endblock %}
     </div>
+
+         <!-- Единая шапка студента -->
+    <div class="nav-menu">
+    <div class="nav-item active" data-role="student" data-page="main">Главная</div>
+    <div class="nav-item" data-role="student" data-page="attendance">Посещаемость</div>
+    <div class="nav-item" data-role="student" data-page="schedule">Расписание</div>
+    <div class="nav-item" data-role="student" data-page="mark">Отметиться</div>
+</div>
+        <!-- Единая шапка преподавателя -->
+    <div class="nav-menu">
+    <div class="nav-item active" data-role="teacher" data-page="main">Главная</div>
+    <div class="nav-item" data-role="teacher" data-page="attendance">Посещаемость</div>
+    <div class="nav-item" data-role="teacher" data-page="schedule">Расписание</div>
+    <div class="nav-item" data-role="teacher" data-page="create-qr">Создать QR</div>
+</div>
+
 </body>
 </html>
