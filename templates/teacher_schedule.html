@@ -1,0 +1,146 @@
+
+{% extends "base.html" %}
+
+{% block title %}Расписание преподавателя{% endblock %}
+
+{% block styles %}
+<style>
+
+.calendar-day.odd-week::after,
+.calendar-day.even-week::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+.calendar-day.odd-week::after { background: #2980b9; }   /* синяя — нечёт */
+.calendar-day.even-week::after { background: #27ae60; } /* зелёная — чёт */
+.calendar-day {
+    position: relative;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="teacher-calendar-page" class="container teacher-dashboard">
+    <div class="header">
+        <div class="logo" onclick="location.href='/'">
+            <img src="{{ url_for('static', filename='images/qr-logo.png') }}" alt="QR Лого">
+            <h1>QR-Сканер</h1>
+        </div>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="location.href='/teacher'">Главная</div>
+            <div class="nav-item" onclick="location.href='/teacher/attendance'">Посещаемость</div>
+            <div class="nav-item active">Занятия</div>
+            <div class="nav-item">Создать QR</div>
+        </div>
+    </div>
+
+    <div class="welcome-section">
+        <h2>Добро пожаловать, <span id="teacher-name">{{ current_user.username }}</span>!</h2>
+        <p>Преподаватель</p>
+    </div>
+
+    <div class="schedule-section">
+        <!-- Календарь -->
+<div class="calendar-container">
+    <div class="calendar-header">
+        <div class="calendar-nav">
+            <button class="calendar-btn" onclick="app.prevMonth()">←</button>
+            <div class="calendar-month" id="teacher-current-month">Октябрь 2025</div>
+            <button class="calendar-btn" onclick="app.nextMonth()">→</button>
+        </div>
+    </div>
+    <div class="calendar-grid" id="teacher-calendar-grid"></div>
+</div>
+
+<!-- Список занятий -->
+<div class="classes-list">
+    <div class="classes-header">
+        <div class="selected-date" id="teacher-selected-date">Выберите дату</div>
+        <button class="add-class-btn" onclick="app.showAddClassModal()">+ Добавить занятие</button>
+    </div>
+    <div id="teacher-classes-container">
+        <div class="no-classes">Выберите дату в календаре</div>
+    </div>
+</div>
+    </div>
+</div>
+
+
+ <!-- Модальное окно добавления занятия -->
+    <div class="modal" id="teacher-addClassModal">
+        <div class="modal-content">
+            <h3>Добавить занятие</h3>
+            <div class="form-group">
+                <label class="form-label">Название предмета</label>
+                <input type="text" class="form-input" id="teacher-newClassName" placeholder="Введите название предмета">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Время</label>
+                <input type="text" class="form-input" id="teacher-newClassTime" placeholder="Например: 9:00 - 10:35">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Группа</label>
+                <select class="form-select" id="teacher-newClassGroup">
+                    <option value="">Выберите группу</option>
+                    <option value="Д-Э 301">Д-Э 301</option>
+                    <option value="Д-Э 302">Д-Э 302</option>
+                    <option value="Д-Э 303">Д-Э 303</option>
+                    <option value="Д-Э 304">Д-Э 304</option>
+                    <option value="Д-Э 305">Д-Э 305</option>
+                    <option value="Д-Э 306">Д-Э 306</option>
+                    <option value="Д-Э 307">Д-Э 307</option>
+                    <option value="Д-Э 308">Д-Э 308</option>
+                    <option value="Д-Э 309">Д-Э 309</option>
+                    <option value="Д-Э 310">Д-Э 310</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" onclick="teacherCalendarHideAddClassModal()">Отмена</button>
+                <button class="save-btn" onclick="teacherCalendarAddNewClass()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования занятия -->
+    <div class="modal" id="teacher-editClassModal">
+        <div class="modal-content">
+            <h3>Изменить занятие</h3>
+            <div class="form-group">
+                <label class="form-label">Название предмета</label>
+                <input type="text" class="form-input" id="teacher-editClassName" placeholder="Введите название предмета">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Время</label>
+                <input type="text" class="form-input" id="teacher-editClassTime" placeholder="Например: 9:00 - 10:35">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Группа</label>
+                <select class="form-select" id="teacher-editClassGroup">
+                    <option value="">Выберите группу</option>
+                    <option value="Д-Э 301">Д-Э 301</option>
+                    <option value="Д-Э 302">Д-Э 302</option>
+                    <option value="Д-Э 303">Д-Э 303</option>
+                    <option value="Д-Э 304">Д-Э 304</option>
+                    <option value="Д-Э 305">Д-Э 305</option>
+                    <option value="Д-Э 306">Д-Э 306</option>
+                    <option value="Д-Э 307">Д-Э 307</option>
+                    <option value="Д-Э 308">Д-Э 308</option>
+                    <option value="Д-Э 309">Д-Э 309</option>
+                    <option value="Д-Э 310">Д-Э 310</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" onclick="teacherCalendarHideEditClassModal()">Отмена</button>
+                <button class="save-btn" onclick="teacherCalendarSaveClassChanges()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+<script src="{{ url_for('static', filename='js/teacher-schedule.js') }}"></script>
+
+{% endblock %}
+
