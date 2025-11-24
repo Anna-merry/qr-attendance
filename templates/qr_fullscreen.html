@@ -1,0 +1,45 @@
+<!-- templates/qr_fullscreen.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>QR — {{ lecture_id }}</title>
+    <style>
+        body { margin: 0; padding: 0; background: #000; color: white; text-align: center; }
+        #qr-code { width: 300px; height: 300px; margin: 30px auto; }
+        #countdown { font-size: 24px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h2>Покажите студентам</h2>
+    <img id="qr-code" src="{{ url_for('qr_image', lecture_id=lecture_id) }}" alt="QR">
+    <div id="countdown">Обновление через: <span id="seconds">10</span> сек</div>
+
+    <script>
+        const lectureId = {{ lecture_id }};
+
+        function updateQR() {
+            // 1. Получаем новый токен
+            fetch(`/lecture/${lectureId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.token) {
+                        // 2. Обновляем изображение QR (с кэш-бастером)
+                        const img = document.getElementById('qr-code');
+                        img.src = `/qr-image/${lectureId}?t=${Date.now()}`;
+
+                        // 3. Обновляем таймер
+                        let seconds = Math.max(0, Math.floor(data.seconds_left));
+                        document.getElementById('seconds').textContent = seconds;
+
+                        // 4. Запускаем следующее обновление через 3 сек
+                        setTimeout(updateQR, 3000);
+                    }
+                });
+        }
+
+        // Старт при загрузке
+        updateQR();
+    </script>
+</body>
+</html>

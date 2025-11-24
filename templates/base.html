@@ -11,7 +11,7 @@
         <!-- Единая шапка для всех страниц -->
         <div class="header">
             <div class="logo" onclick="window.location.href='/'">
-                <img src="data/Qr logo.png" alt="QR Logo">
+                <img src="{{ url_for('static', filename='images/qr_logo.png') }}" alt="QR Logo">
                 <h1>QR-Сканер</h1>
             </div>
             <!-- Блок, который можно переопределять на разных страницах -->
@@ -23,21 +23,6 @@
         <!-- Основной контент страницы -->
         {% block content %}{% endblock %}
     </div>
-
-         <!-- Единая шапка студента -->
-    <div class="nav-menu">
-    <div class="nav-item active" onclick="showStudentPage('main')">Главная</div>
-    <div class="nav-item" onclick="showStudentPage('attendance')">Посещаемость</div>
-    <div class="nav-item" onclick="showStudentPage('schedule')">Расписание</div>
-    <div class="nav-item" onclick="showStudentPage('mark')">Отметиться</div>
-</div>
-        <!-- Единая шапка преподавателя -->
-   <div class="nav-menu">
-    <div class="nav-item active" onclick="showTeacherPage('main')">Главная</div>
-    <div class="nav-item" onclick="showTeacherPage('attendance')">Посещаемость</div>
-    <div class="nav-item" onclick="showTeacherPage('schedule')">Расписание</div>
-    <div class="nav-item" onclick="showTeacherPage('create-qr')">Создать QR</div>
-</div>
 
 </body>
 </html>

@@ -7,7 +7,7 @@
 <div class="nav-menu">
     <div class="nav-item active">Главная</div>
     <div class="nav-item">Посещаемость</div>
-    <div class="nav-item">Расписание</div>
+    <div class="nav-item" onclick="location.href='/teacher/schedule'">Расписание</div>
     <div class="nav-item">QR-коды</div>
 </div>
 {% endblock %}
@@ -33,9 +33,9 @@
                     <p><strong>Группа:</strong> {{ lecture.group }}</p>
                     <p><strong>Дата:</strong> {{ lecture.date.strftime('%d.%m.%Y') }}</p>
                     <p><strong>Время:</strong> {{ lecture.time.strftime('%H:%M') }}</p>
-                    <div class="class-time">
-                        <a href="{{ url_for('lecture_qr', lecture_id=lecture.id) }}" class="mark-btn">Показать QR</a>
-                    </div>
+                    <a href="{{ url_for('qr_fullscreen', lecture_id=lecture.id) }}" target="_blank">
+    Показать QR (полный экран)
+</a>
                 </div>
                 {% endfor %}
             </div>

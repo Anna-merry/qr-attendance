@@ -1,0 +1,91 @@
+<!-- templates/scan.html -->
+{% extends "base.html" %}
+
+{% block title %}Сканировать QR-код — QR-Сканер{% endblock %}
+
+{% block content %}
+<div class="scan-container text-center" style="padding: 20px;">
+    <h2>Наведите камеру на QR-код преподавателя</h2>
+    <video id="video" width="100%" height="400" style="background: black; margin: 20px 0; border-radius: 8px;"></video>
+    <p id="status">Ожидание QR-кода...</p>
+    <button id="start-btn" class="btn btn-primary">Запустить камеру</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+let video;
+let canvas;
+let ctx;
+
+async function startCamera() {
+    const status = document.getElementById('status');
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
+        });
+        
+        video = document.getElementById('video');
+        video.srcObject = stream;
+        video.play();
+
+        document.getElementById('start-btn').style.display = 'none';
+        status.textContent = 'Ищу QR-код...';
+
+        // Запуск распознавания
+        canvas = document.createElement('canvas');
+        ctx = canvas.getContext('2d');
+        requestAnimationFrame(scanFrame);
+    } catch (err) {
+        status.textContent = 'Ошибка: камера не доступна';
+        console.error(err);
+    }
+}
+
+function scanFrame() {
+    if (!video || !ctx) return;
+    
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code) {
+            // QR-код найден — отправляем на сервер
+            const url = new URL(code.data);
+            const token = url.searchParams.get('token');
+            const lecture_id = url.searchParams.get('lecture_id');
+
+            if (token && lecture_id) {
+                document.getElementById('status').textContent = 'Отправка...';
+                fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, lecture_id })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('status').innerHTML = 
+                            `<span style="color: green;">✅ ${data.message}</span>`;
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                    } else {
+                        document.getElementById('status').innerHTML = 
+                            `<span style="color: red;">❌ ${data.message}</span>`;
+                    }
+                });
+            } else {
+                document.getElementById('status').textContent = 'Неверный формат QR-кода';
+            }
+            return;
+        }
+    }
+    requestAnimationFrame(scanFrame);
+}
+
+// Запуск при клике
+document.getElementById('start-btn').addEventListener('click', startCamera);
+</script>
+{% endblock %}

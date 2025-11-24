@@ -23,7 +23,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1600px;
             width: 100%;
             margin: 0 auto;
             padding: 20px;
@@ -170,7 +170,6 @@
             justify-content: center;
             gap: 30px;
             margin: 40px 0;
-            flex-wrap: wrap;
             padding: 0 15px;
         }
 
@@ -179,6 +178,9 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .feature-card h3 {
@@ -532,3 +534,298 @@
                 min-width: 100%;
             }
         }
+
+
+        /* Календарь */
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .calendar-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .calendar-btn:hover {
+            background: var(--hover-color);
+        }
+
+        .calendar-month {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .calendar-day-header {
+            background: var(--secondary-color);
+            padding: 8px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 12px;
+        }
+
+        .calendar-day {
+            background: white;
+            padding: 8px;
+            min-height: 60px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        .calendar-day:hover {
+            background: var(--hover-color);
+        }
+
+        .calendar-day.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .calendar-day.other-month {
+            color: var(--light-text);
+            background: #fafafa;
+        }
+
+        .day-number {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .day-events {
+            font-size: 10px;
+            color: var(--light-text);
+        }
+
+        /* Список занятий */
+        .classes-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .classes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .selected-date {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .add-class-btn {
+            padding: 8px 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .add-class-btn:hover {
+            background: var(--accent-color);
+        }
+
+        .class-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--secondary-color);
+        }
+
+        .class-info {
+            flex: 1;
+        }
+
+        .class-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        .class-details {
+            font-size: 12px;
+            color: var(--light-text);
+            display: flex;
+            gap: 15px;
+        }
+
+        .class-time {
+            font-weight: 500;
+        }
+
+        .class-group {
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        .class-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .edit-btn {
+            padding: 4px 8px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            background: var(--primary-color);
+        }
+
+        .delete-btn {
+            padding: 4px 8px;
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #cc0000;
+        }
+
+        .no-classes {
+            text-align: center;
+            color: var(--light-text);
+            padding: 30px;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .cancel-btn {
+            padding: 8px 16px;
+            background: white;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .save-btn {
+            padding: 8px 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
