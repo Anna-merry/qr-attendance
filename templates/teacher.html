@@ -16,32 +16,34 @@
 <div class="dashboard teacher-dashboard">
     <div class="welcome-section">
         <h2>Добро пожаловать, {{ current_user.username.split()[0] }}!</h2>
-        <p>Вы — преподаватель</p>
+        <p>Преподаватель</p>
     </div>
 
-    <div class="actions-section mb-4">
-        <a href="{{ url_for('create_lecture') }}" class="btn btn-primary">+ Создать занятие</a>
-    </div>
-
-    <div class="schedule-section">
-        <h3>Ваши занятия</h3>
-        {% if lectures %}
-            <div class="classes-container">
-                {% for lecture in lectures %}
+   <div class="schedule-section">
+        <h3>Занятия на сегодня (
+            {{ now.strftime('%a, %d.%m')|lower|replace('mon','пн')|replace('tue','вт')|replace('wed','ср')|replace('thu','чт')|replace('fri','пт')|replace('sat','сб')|replace('sun','вс') }}
+        ):</h3>
+        <div class="classes-container">
+            {% if lectures %}
+                {% for lesson in lectures %}
                 <div class="class-card">
-                    <h4>{{ lecture.subject }}</h4>
-                    <p><strong>Группа:</strong> {{ lecture.group }}</p>
-                    <p><strong>Дата:</strong> {{ lecture.date.strftime('%d.%m.%Y') }}</p>
-                    <p><strong>Время:</strong> {{ lecture.time.strftime('%H:%M') }}</p>
-                    <a href="{{ url_for('qr_fullscreen', lecture_id=lecture.id) }}" target="_blank">
-    Показать QR (полный экран)
-</a>
+                    <h4>{{ lesson.subject or 'Без названия' }}</h4>
+                    <div class="class-time">
+                        <span class="time-slot">
+                      {{ lesson.start_time.strftime('%H:%M') }}–{{ lesson.end_time.strftime('%H:%M') }}
+                       </span>
+                    <span class="group-name">{{ lesson.group_name or '—' }}</span>
+                        <a href="{{ url_for('qr_fullscreen', item_id=lesson.id) }}" class="mark-btn">
+                            Отметиться
+                        </a>
+                    </div>
                 </div>
                 {% endfor %}
-            </div>
-        {% else %}
-            <p>У вас пока нет занятий. <a href="{{ url_for('create_lecture') }}">Создайте первое</a>.</p>
-        {% endif %}
-    </div>
+            {% else %}
+                <div class="no-classes">Сегодня занятий нет</div>
+            {% endif %}
+        </div>
+    </div> 
 </div>
+
 {% endblock %}

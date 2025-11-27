@@ -20,15 +20,18 @@
     <div class="schedule-section">
         <h3>Ближайшие занятия на сегодня (<span id="current-date">чт, 30.10</span>):</h3>
         <div class="classes-container">
-            {% for lesson in lessons %}
-            <div class="class-card">
-                <h4>{{ lesson.title }}</h4>
-                <div class="class-time">
-                    <span class="time-slot">{{ lesson.time }}</span>
-                    <button class="mark-btn" onclick="alert('QR-сканер активирован! Наведите камеру телефона на QR-код.')">Отметиться</button>
-                </div>
-            </div>
-            {% endfor %}
+            {% for item in lectures %}  <!-- lectures, а не lessons -->
+        <div class="class-card">
+            <h4>{{ item.subject }}</h4>
+         <div class="class-time">
+              <span class="time-slot">{{ item.start_time.strftime('%H:%M') }}–{{ item.end_time.strftime('%H:%M') }}</span>
+              <span class="group-name">{{ item.group_name }}</span>
+              <a href="{{ url_for('qr_fullscreen', item_id=item.id) }}" class="mark-btn">
+            Отметиться
+              </a>
+         </div>
+        </div>
+{% endfor %}
         </div>
     </div>
 </div>
