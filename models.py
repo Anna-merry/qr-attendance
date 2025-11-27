@@ -1,12 +1,13 @@
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime
 import secrets
+from sqlalchemy.exc import IntegrityError 
 
 db = SQLAlchemy()
 
-class User(UserMixin,db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -14,44 +15,20 @@ class User(UserMixin,db.Model):
     role = db.Column(db.String(20), default='student')
     group = db.Column(db.String(50))
 
+    # Отношения (для обратной связи)
+    schedule_items = db.relationship('ScheduleItem', backref='teacher', lazy=True)
+    attendances = db.relationship('Attendance', foreign_keys='Attendance.student_id', backref='student', lazy=True)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-class Lecture(db.Model):
-    __tablename__ = 'lectures'
-    id = db.Column(db.Integer, primary_key=True)
-    subject = db.Column(db.String(100), nullable=False)
-    group = db.Column(db.String(50), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    time = db.Column(db.Time, nullable=False)
-    teacher_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    current_token = db.Column(db.String(100))
-    token_expires_at = db.Column(db.DateTime)
+    def __repr__(self):
+        return f"<User {self.username} ({self.role})>"
 
-    def generate_new_token(self):
-        self.current_token = secrets.token_urlsafe(16)
-        self.token_expires_at = datetime.utcnow() + timedelta(seconds=10)
-        return self.current_token
 
-    def is_token_valid(self, token):
-        now = datetime.utcnow()
-        return (
-            self.current_token == token and
-            self.token_expires_at is not None and
-            self.token_expires_at > now
-        )
-
-class Attendance(db.Model):
-    __tablename__ = 'attendances'
-    id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    lecture_id = db.Column(db.Integer, db.ForeignKey('lectures.id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
-    token_used = db.Column(db.String(100))  # ← добавлено
-
-# === НОВАЯ МОДЕЛЬ: шаблон расписания (для двухнедельного цикла) ===
 class ScheduleItem(db.Model):
     __tablename__ = 'schedule_items'
     id = db.Column(db.Integer, primary_key=True)
@@ -63,3 +40,26 @@ class ScheduleItem(db.Model):
     group_name = db.Column(db.String(20), nullable=False)
     room = db.Column(db.String(20))
     teacher_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    def __repr__(self):
+        return f"<ScheduleItem {self.subject} ({self.group_name})>"
+
+
+class Attendance(db.Model):
+    __tablename__ = 'attendance'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    schedule_item_id = db.Column(db.Integer, db.ForeignKey('schedule_items.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)  # дата занятия, например: 2025-11-26
+    scanned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Отношения
+    schedule_item = db.relationship('ScheduleItem', backref='attendances')
+
+    # Уникальность: один студент — одна отметка на одно занятие в день
+    __table_args__ = (
+        db.UniqueConstraint('student_id', 'schedule_item_id', 'date', name='uq_student_item_date'),
+    )
+
+    def __repr__(self):
+        return f"<Attendance {self.student.username} → {self.schedule_item.subject} on {self.date}>"

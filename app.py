@@ -1,23 +1,44 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import qrcode
 from io import BytesIO
+import secrets
+from itsdangerous import URLSafeTimedSerializer
+from sqlalchemy.exc import IntegrityError 
 
 # Импортируем модели и хелперы
-from models import db, User, Lecture, Attendance, ScheduleItem
+from models import db, User,  Attendance, ScheduleItem
 from helpers import expand_schedule_to_semester, generate_token
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:mypostgrespwd@localhost:5432/qr_attendance'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Вспомогательная функция
+def get_todays_lessons(teacher_id, target_date=None):
+    if target_date is None:
+        target_date = date.today()
+    
+    semester_start = date(2025, 10, 1)
+    days_diff = (target_date - semester_start).days
+    week_num = days_diff // 7 + 1
+    parity = week_num % 2
+    dow = target_date.isoweekday()  
+
+    return ScheduleItem.query.filter_by(
+        teacher_id=teacher_id,
+        day_of_week=dow,
+        week_parity=parity
+    ).all()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -80,60 +101,116 @@ def register():
 
     return render_template('auth.html', mode='register')
     
-
-@app.route('/dashboard')
-def dashboard():
-    from flask_login import current_user
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
-    return render_template('student.html')
-
-@app.route('/scan')
+@app.route('/lectures')
 @login_required
-def scan_page():
+def lectures():
+    if current_user.role != 'teacher':
+        return redirect(url_for('login'))
+    lessons = get_todays_lessons(current_user.id)
+    return render_template('teacher.html', lectures=lessons, now=datetime.now())
+
+@app.route('/dashboard')  # студент
+@login_required
+def student_dashboard():
     if current_user.role != 'student':
-        return "Только для студентов", 403
-    return render_template('scan.html')  # ← новый шаблон
+        return redirect(url_for('login'))
+    lessons = get_todays_lessons_for_group(current_user.group)
+    return render_template('student.html', lectures=lessons, now=datetime.now())
+
+def get_todays_lessons_for_group(group_name):
+    today = date.today()
+    semester_start = date(2025, 9, 1)
+    week_num = ((today - semester_start).days // 7) + 1
+    parity = week_num % 2
+    dow = today.isoweekday()
+    return ScheduleItem.query.filter_by(
+        group_name=group_name,
+        day_of_week=dow,
+        week_parity=parity
+    ).all()
+    
+# QR-СИСТЕМА (ТОЛЬКО ДЛЯ ПРЕПОДАВАТЕЛЯ)
+
+@app.route('/qr/full/<int:item_id>')
+@login_required
+def qr_fullscreen(item_id):
+    if current_user.role != 'teacher':
+        abort(403)
+    item = ScheduleItem.query.filter_by(id=item_id, teacher_id=current_user.id).first_or_404()
+    today = date.today().strftime('%Y-%m-%d')
+    token_data = f"{item_id}:{today}"
+    token = serializer.dumps(token_data)  # ← подписанный токен
+    
+    return render_template('qr_fullscreen.html', item_id=item_id, date_str=today, token=token)
+
+@app.route('/qr-image/<int:item_id>/<date_str>/<token>')
+def qr_image(item_id, date_str, token):
+    # Без @login_required — студенты должны видеть QR!
+    scan_url = url_for('api_scan', item_id=item_id, date=date_str, token=token, _external=True)
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(scan_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png')
+
+# СКАНИРОВАНИЕ (ТОЛЬКО ДЛЯ СТУДЕНТОВ)
 
 @app.route('/api/scan', methods=['POST'])
 @login_required
-def scan_qr():
+def api_scan():
     if current_user.role != 'student':
         return jsonify({'status': 'error', 'message': 'Только для студентов'}), 403
 
     data = request.get_json()
+    item_id = data.get('item_id')
+    date_str = data.get('date') 
     token = data.get('token')
-    lecture_id = data.get('lecture_id')
 
-    if not token or not lecture_id:
-        return jsonify({'status': 'error', 'message': 'Нет токена или ID занятия'}), 400
+    if not all([item_id, date_str, token]):
+        return jsonify({'status': 'error', 'message': 'Не хватает данных'}), 400
 
-    lecture = Lecture.query.get(lecture_id)
-    if not lecture:
-        return jsonify({'status': 'error', 'message': 'Занятие не найдено'}), 404
+    try:
+        # 1 Проверяем подпись и срок (max_age=10 сек)
+        token_data = serializer.loads(token, max_age=10)  # ← автоматически проверяет подпись и время!
+        expected_item_id, expected_date = token_data.split(':', 1)
+        
+        # 2 Проверяем, что данные совпадают
+        if int(expected_item_id) != item_id or expected_date != date_str:
+            return jsonify({'status': 'error', 'message': 'Несоответствие данных в токене'}), 400
 
-    # Проверяем токен
-    if not lecture.is_token_valid(token):
-        return jsonify({'status': 'error', 'message': 'Токен недействителен или просрочен'}), 400
+        # 3 Проверяем, что занятие существует и для группы студента
+        item = ScheduleItem.query.filter_by(
+            id=item_id,
+            group_name=current_user.group
+        ).first()
+        if not item:
+            return jsonify({'status': 'error', 'message': 'Занятие не найдено'}), 404
+        
+        # 4 Проверяем, не отмечался ли уже
+        existing = Attendance.query.filter_by(
+            student_id=current_user.id,
+            schedule_item_id=item_id,
+            date=date.fromisoformat(date_str)
+        ).first()
+        if existing:
+            return jsonify({'status': 'error', 'message': 'Вы уже отметились'}), 409
 
-    # Проверяем, не сканировал ли уже этот студент
-    existing = Attendance.query.filter_by(
-        student_id=current_user.id,
-        lecture_id=lecture_id
-    ).first()
-    if existing:
-        return jsonify({'status': 'error', 'message': 'Вы уже отметились'}), 409
-
-    # Записываем посещение
-    attendance = Attendance(
-        student_id=current_user.id,
-        lecture_id=lecture_id,
-        token_used=token
-    )
-    db.session.add(attendance)
-    db.session.commit()
-
-    return jsonify({'status': 'success', 'message': '✅ Посещение засчитано!'})
+        # 5 Сохраняем
+        attendance = Attendance(
+            student_id=current_user.id,
+            schedule_item_id=item_id,
+            date=date.fromisoformat(date_str)
+        )
+        db.session.add(attendance)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': '✅ Посещение засчитано!'})
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Неверный формат даты'}), 400
+    
 
 @app.route('/logout')
 def logout():
@@ -141,89 +218,8 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/lectures')
-@login_required
-def lectures():
-    if current_user.role == 'teacher':
-        lecture_list = Lecture.query.filter_by(teacher_id=current_user.id).all()
-    else:
-        lecture_list = []  # студенты пока не видят занятия
-    return render_template('teacher.html', lectures=lecture_list)
 
-@app.route('/create_lecture', methods=['GET', 'POST'])
-@login_required
-def create_lecture():
-    if current_user.role != 'teacher':
-        return "Доступ запрещён", 403
-
-    if request.method == 'POST':
-        lecture = Lecture(
-            subject=request.form['subject'],
-            group=request.form['group'],
-            date=request.form['date'],
-            time = request.form['time'],
-            teacher_id=current_user.id
-        )
-        db.session.add(lecture)
-        db.session.commit()
-        return redirect(url_for('lectures'))
-
-    return render_template('create_lecture.html', today=date.today())
-
-@app.route('/qr/full/<int:lecture_id>')
-@login_required
-def qr_fullscreen(lecture_id):
-    if current_user.role != 'teacher':
-        return "Только для преподавателей", 403
-    return render_template('qr_fullscreen.html', lecture_id=lecture_id)
-
-@app.route('/lecture/<int:lecture_id>')
-@login_required
-def lecture_qr(lecture_id):
-    # Только для преподавателя
-    if current_user.role != 'teacher':
-        return "Доступ запрещён", 403
-
-    # Проверяем, что занятие принадлежит текущему преподавателю
-    lecture = Lecture.query.filter_by(
-        id=lecture_id,
-        teacher_id=current_user.id
-    ).first_or_404()
-
-    # Обновляем токен, если прошло ≥10 сек или его нет
-    now = datetime.utcnow()
-    if not lecture.current_token or lecture.token_expires_at <= now:
-        lecture.generate_new_token()
-        db.session.commit()
-
-    # Возвращаем токен и время истечения (для фронтенда)
-    return jsonify({
-        'token': lecture.current_token,
-        'expires_at': lecture.token_expires_at.isoformat(),
-        'seconds_left': (lecture.token_expires_at - now).total_seconds()
-    })
-
-@app.route('/qr-image/<int:lecture_id>')
-@login_required
-def qr_image(lecture_id):
-    lecture = Lecture.query.get_or_404(lecture_id)
-    if not lecture.current_token:
-        lecture.generate_new_token()
-        db.session.commit()
-
-    # URL для сканирования (на реальном сервере замените localhost на домен)
-    qr_data = f"http://localhost:5000/scan?token={lecture.current_token}&lecture_id={lecture_id}"
-
-    qr = qrcode.QRCode(version=1, box_size=10, border=4)
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    buf = BytesIO()
-    img.save(buf, format='PNG')
-    buf.seek(0)
-    return send_file(buf, mimetype='image/png')
-
+# КАЛЕНДАРЬ 
 
 @app.route('/teacher/schedule')
 @login_required
@@ -287,6 +283,7 @@ def api_delete_schedule_item(item_id):
     db.session.delete(item)
     db.session.commit()
     return jsonify({'message': 'Удалено'}), 200
+
 
 
 @app.route('/')
