@@ -1,0 +1,213 @@
+<!-- templates/teacher_attendance.html -->
+{% extends "base.html" %}
+
+{% block title %}Посещаемость — QR-Сканер{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="welcome-section">
+        <h2>📊 Посещаемость студентов</h2>
+        <p>Выберите группу и дату для просмотра</p>
+    </div>
+
+    <div class="filters" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+        <div>
+            <label for="group-select">Группа:</label>
+            <select id="group-select" class="form-control" onchange="loadAttendance()">
+                <option value="">— Все группы —</option>
+                {% for group in groups %}
+                <option value="{{ group }}">{{ group }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="date-input">Дата:</label>
+            <input type="date" id="date-input" class="form-control" onchange="loadAttendance()">
+        </div>
+        <div style="align-self: flex-end;">
+            <button id="export-btn" class="btn btn-success" onclick="exportToExcel()">
+                📥 Экспорт в Excel
+            </button>
+        </div>
+    </div>
+
+    <div id="attendance-table-container">
+        <p>Выберите группу и дату для загрузки данных.</p>
+    </div>
+</div>
+
+<style>
+.form-control {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.btn-success { background: #28a745; color: white; }
+.btn-success:hover { background: #218838; }
+
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.attendance-table th,
+.attendance-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+.attendance-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+}
+.attendance-table tr:hover {
+    background: #f9f9f9;
+}
+.status-present { color: #28a745; font-weight: bold; }
+.status-absent { color: #dc3545; }
+</style>
+
+<script>
+function setDefaultDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date-input').value = today;
+}
+
+async function loadAttendance() {
+    const group = document.getElementById('group-select').value;
+    const dateStr = document.getElementById('date-input').value;
+    const container = document.getElementById('attendance-table-container');
+
+    if (!dateStr) {
+        container.innerHTML = '<p>Выберите дату.</p>';
+        return;
+    }
+
+    container.innerHTML = '<p>Загрузка...</p>';
+
+    try {
+        const url = new URL('/api/teacher/attendance', window.location.origin);
+        if (group) url.searchParams.append('group', group);
+        url.searchParams.append('date', dateStr);
+
+        const res = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+
+        if (res.status !== 200) {
+            throw new Error(data.error || 'Ошибка загрузки');
+        }
+
+        renderTable(data, group, dateStr);
+    } catch (err) {
+        container.innerHTML = `<p style="color: red;">❌ ${err.message}</p>`;
+    }
+}
+
+function renderTable(data, group, dateStr) {
+    const container = document.getElementById('attendance-table-container');
+
+    if (!data.lessons || data.lessons.length === 0) {
+        container.innerHTML = `<p>На ${dateStr} ${group ? `для группы ${group}` : 'в ваших группах'} занятий нет.</p>`;
+        return;
+    }
+
+    let html = `<h3>Занятия на ${new Date(dateStr).toLocaleDateString('ru-RU')} ${
+        group ? `(группа ${group})` : ''
+    }</h3>`;
+
+    data.lessons.forEach(lesson => {
+        html += `
+            <h4 style="margin-top: 24px;">${lesson.subject} | ${lesson.time} | ${lesson.group_name}</h4>
+            <table class="attendance-table">
+                <thead>
+                    <tr>
+                        <th>Студент</th>
+                        <th>Статус</th>
+                        <th>Время отметки</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        if (lesson.students.length === 0) {
+            html += `<tr><td colspan="3">Нет студентов в группе</td></tr>`;
+        } else {
+            lesson.students.forEach(student => {
+                const status = student.attended ? '✅ Присутствует' : '❌ Отсутствует';
+                const statusClass = student.attended ? 'status-present' : 'status-absent';
+                const timestamp = student.timestamp ? new Date(student.timestamp).toLocaleTimeString('ru-RU') : '—';
+
+                html += `
+                    <tr>
+                        <td>${student.name}</td>
+                        <td class="${statusClass}">${status}</td>
+                        <td>${timestamp}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `</tbody></table>`;
+    });
+
+    container.innerHTML = html;
+}
+
+async function exportToExcel() {
+    const group = document.getElementById('group-select').value;
+    const dateStr = document.getElementById('date-input').value;
+
+    if (!dateStr) {
+        alert('Выберите дату для экспорта');
+        return;
+    }
+
+    try {
+        const url = `/api/teacher/attendance/export?date=${encodeURIComponent(dateStr)}`;
+        if (group) url += `&group=${encodeURIComponent(group)}`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
+            throw new Error(err.error || 'Не удалось экспортировать');
+        }
+
+        // Скачиваем файл
+        const blob = await response.blob();
+        const urlObj = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = urlObj;
+        a.download = `Посещаемость_${group || 'все'}_${dateStr}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            window.URL.revokeObjectURL(urlObj);
+            document.body.removeChild(a);
+        }, 100);
+    } catch (err) {
+        alert(`Ошибка экспорта: ${err.message}`);
+        console.error(err);
+    }
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    setDefaultDate();
+    // Загружаем данные по умолчанию (все группы, сегодня)
+    setTimeout(loadAttendance, 300);
+});
+</script>
+{% endblock %}

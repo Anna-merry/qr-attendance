@@ -25,19 +25,6 @@
 {% endblock %}
 
 {% block content %}
-<div id="teacher-calendar-page" class="container teacher-dashboard">
-    <div class="header">
-        <div class="logo" onclick="location.href='/'">
-            <img src="{{ url_for('static', filename='images/qr-logo.png') }}" alt="QR Лого">
-            <h1>QR-Сканер</h1>
-        </div>
-        <div class="nav-menu">
-            <div class="nav-item" onclick="location.href='/teacher'">Главная</div>
-            <div class="nav-item" onclick="location.href='/teacher/attendance'">Посещаемость</div>
-            <div class="nav-item active">Занятия</div>
-            <div class="nav-item">Создать QR</div>
-        </div>
-    </div>
 
     <div class="welcome-section">
         <h2>Добро пожаловать, <span id="teacher-name">{{ current_user.username }}</span>!</h2>

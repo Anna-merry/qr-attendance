@@ -1,0 +1,174 @@
+<!-- templates/attendance.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="welcome-section">
+        <h2>Статистика посещаемости</h2>
+        <p>Здесь вы можете увидеть свою посещаемость по всем предметам</p>
+    </div>
+
+    <h3 style="margin-bottom: 25px;">Ваша посещаемость по предметам:</h3>
+    <div class="attendance-container" id="attendance-container"></div>
+</div>
+
+<style>
+.attendance-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.attendance-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    padding: 20px;
+    transition: transform 0.2s ease;
+}
+
+.attendance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.attendance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.attendance-subject {
+    font-weight: bold;
+    font-size: 16px;
+    color: #333;
+    max-width: 70%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attendance-count {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.progress-bar {
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.attendance-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.attendance-percent {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.attendance-icon-container {
+    display: flex;
+    align-items: center;
+}
+
+.attendance-icon {
+    width: 20px;
+    height: 20px;
+}
+</style>
+
+<script>
+async function renderAttendanceData() {
+    const container = document.getElementById('attendance-container');
+    container.innerHTML = '<p style="text-align: center; padding: 30px; color: #666;">Загрузка данных...</p>';
+
+    try {
+        const response = await fetch('/api/attendance', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        container.innerHTML = '';
+
+        if (data.length === 0) {
+            container.innerHTML = '<p style="text-align: center; padding: 30px; color: #666;">Нет данных о занятиях.</p>';
+            return;
+        }
+
+        data.forEach(subj => {
+            const percent = subj.total ? Math.round((subj.attended / subj.total) * 100) : 0;
+            let color = "#ff4d4d"; // красный — критично
+            let icon = `
+                <svg class="attendance-icon" viewBox="0 0 24 24" fill="${color}">
+                    <path d="M18.4 4L12 10.4 5.6 4 4 5.6l6.4 6.4L4 18.4 5.6 20l6.4-6.4 6.4 6.4 1.6-1.6-6.4-6.4 6.4-6.4z"/>
+                </svg>
+            `;
+
+            if (percent >= 80) {
+                color = "#2ecc71"; // зелёный — отлично
+                icon = `
+                    <svg class="attendance-icon" viewBox="0 0 24 24" fill="${color}">
+                        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                    </svg>
+                `;
+            } else if (percent >= 50) {
+                color = "#f1c40f"; // жёлтый — нормально
+                icon = `
+                    <svg class="attendance-icon" viewBox="0 0 24 24" fill="${color}">
+                        <path d="M18.4 4L12 10.4 5.6 4 4 5.6l6.4 6.4L4 18.4 5.6 20l6.4-6.4 6.4 6.4 1.6-1.6-6.4-6.4 6.4-6.4z"/>
+                    </svg>
+                `;
+            }
+
+            container.innerHTML += `
+                <div class="attendance-card">
+                    <div class="attendance-header">
+                        <div class="attendance-subject">${subj.subject}</div>
+                        <div class="attendance-count">${subj.attended}/${subj.total}</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${percent}%; background: ${color};"></div>
+                    </div>
+                    <div class="attendance-footer">
+                        <div class="attendance-percent">${percent}%</div>
+                        <div class="attendance-icon-container">
+                            ${icon}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+    } catch (error) {
+        console.error('Ошибка при загрузке посещаемости:', error);
+        container.innerHTML = `<p style="text-align: center; padding: 30px; color: red;">⛔ Ошибка: ${error.message}</p>`;
+    }
+}
+
+// Запускаем при загрузке страницы
+document.addEventListener('DOMContentLoaded', renderAttendanceData);
+</script>
+
+{% endblock %}

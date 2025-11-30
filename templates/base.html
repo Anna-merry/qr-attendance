@@ -8,17 +8,50 @@
 </head>
 <body>
     <div class="container">
+        {% if current_user.is_authenticated %}
         <!-- Единая шапка для всех страниц -->
         <div class="header">
             <div class="logo" onclick="window.location.href='/'">
                 <img src="{{ url_for('static', filename='images/qr_logo.png') }}" alt="QR Logo">
                 <h1>QR-Сканер</h1>
             </div>
-            <!-- Блок, который можно переопределять на разных страницах -->
-            {% block header_content %}
-                <!-- По умолчанию — пусто (например, на главной) -->
-            {% endblock %}
+             {% if current_user.is_authenticated %}
+                <div class="nav-menu">
+                    {% set current_page = request.endpoint %}
+
+                    {% if current_user.role == 'teacher' %}
+                        <!-- Навигация для преподавателя -->
+                        <div class="nav-item {% if current_page == 'lectures' %}active{% endif %}" 
+                             onclick="window.location.href='/teacher'">Главная</div>
+                        <div class="nav-item {% if current_page == 'teacher_attendance' %}active{% endif %}" 
+                             onclick="window.location.href='/teacher/attendance'">Посещаемость</div>
+                        <div class="nav-item {% if current_page == 'teacher_schedule' %}active{% endif %}" 
+                             onclick="window.location.href='/teacher/schedule'">Расписание</div>
+                         <div class="nav-item" 
+                             onclick="window.location.href='/logout'">Выйти</div>
+                    {% elif current_user.role == 'student' %}
+                        <!-- Навигация для студента -->
+                        <div class="nav-item {% if current_page == 'student_dashboard' %}active{% endif %}" 
+                             onclick="window.location.href='/student'">Главная</div>
+                        <div class="nav-item {% if current_page == 'attendance' %}active{% endif %}" 
+                             onclick="window.location.href='/attendance'">Посещаемость</div>
+                        <div class="nav-item" 
+                             onclick="window.location.href='/logout'">Выйти</div>
+                        <div class="nav-item {% if current_page == 'scan' %}active{% endif %}" 
+                             onclick="window.location.href='/scan'">Сканировать</div>
+                    {% endif %}
+                </div>
+            {% endif %}
         </div>
+        {% else %}
+    <!-- Для неавторизованных — пустая шапка или только логотип -->
+    <div class="header" style="justify-content: flex-start; padding: 16px 20px;">
+        <div class="logo" onclick="window.location.href='/'">
+            <img src="{{ url_for('static', filename='images/qr_logo.png') }}" alt="QR Logo">
+            <h1>QR-Сканер</h1>
+        </div>
+    </div>
+{% endif %}
 
         <!-- Основной контент страницы -->
         {% block content %}{% endblock %}

@@ -31,9 +31,11 @@
                 </div>
             </div>
 
-            <div class="form-group" id="group-field" {% if request.form.role != 'student' and (mode == 'login' or (mode == 'register' and not request.form)) %}style="display:none"{% endif %}>
+            <div class="form-group" id="group-field" style="display: none;">
                 <label class="form-label">Группа</label>
-                <input type="text" name="group" class="form-input" value="{{ request.form.group or '' }}" placeholder="Введите вашу группу">
+                <input type="text" name="group" class="form-input" 
+                value="{{ request.form.group or '' }}" 
+                placeholder="Введите вашу группу">
             </div>
 
             <div class="form-group">
@@ -67,7 +69,23 @@
 function toggleGroupField() {
     const role = document.getElementById('user-role').value;
     const groupField = document.getElementById('group-field');
-    groupField.style.display = (role === 'student') ? 'flex' : 'none';
+    const groupInput = groupField.querySelector('input[name="group"]');
+    
+    if (role === 'student') {
+        groupField.style.display = 'block';
+        groupInput.setAttribute('required', 'required');
+    } else {
+        groupField.style.display = 'none';
+        groupInput.removeAttribute('required');
+    }
 }
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('user-role');
+    const initialRole = '{{ request.form.role or "student" }}';
+    roleSelect.value = initialRole;
+    toggleGroupField();
+});
+
+document.getElementById('user-role')?.addEventListener('change', toggleGroupField);
 </script>
 {% endblock %}

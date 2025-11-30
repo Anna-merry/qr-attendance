@@ -32,11 +32,17 @@ class TeacherScheduleApp {
     }
 
     getWeekInfo(date) {
-        const diff = Math.floor((date - this.semesterStart) / 86400000);
-        const weekNum = Math.floor(diff / 7) + 1;
-        const parity = weekNum % 2; // 1 = нечётная, 0 = чётная
-        return { weekNum, parity };
-    }
+    const dow = date.getDay() === 0 ? 7 : date.getDay(); // ISO: 1=пн, 7=вс
+
+    // 🔹 Неделя от начала семестра (1 сентября 2025)
+    const semesterStart = new Date(2025, 8, 1); // сентябрь = 8 (месяцы с 0)
+    const diffMs = date - semesterStart;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const weekNum = Math.floor(diffDays / 7) + 1; // 1-я неделя = с 1 сен
+    const parity = weekNum % 2; // 1 — нечётная, 0 — чётная
+
+    return { weekNum, parity };
+}
 
     // === Календарь ===
     renderCalendar() {
@@ -176,7 +182,7 @@ class TeacherScheduleApp {
         if (parts.length < 2) return alert('Формат времени: 9:00–10:35');
 
         const { parity } = this.getWeekInfo(this.selectedDate);
-        const dow = this.selectedDate.getDay() || 7; // Вс → 7
+        const dow = this.selectedDate.getDay() === 0 ? 7 : this.selectedDate.getDay();
 
         try {
             const res = await fetch('/api/teacher/schedule', {
@@ -285,7 +291,13 @@ class TeacherScheduleApp {
     }
 
     // === Утилиты ===
-    formatDate(d) { return d.toISOString().split('T')[0]; }
+    formatDate(d) {
+    // Возвращает YYYY-MM-DD в локальном времени (без сдвига UTC)
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
     isSameDay(a, b) { return this.formatDate(a) === this.formatDate(b); }
 }
 

@@ -64,7 +64,7 @@ def login():
             flash('Пароль введён неверно', 'error')
         else:
             login_user(user)
-            return redirect(url_for('lectures' if user.role == 'teacher' else 'dashboard'))
+            return redirect(url_for('lectures' if user.role == 'teacher' else 'student_dashboard'))
 
     return render_template('auth.html', mode='login')
 
@@ -101,7 +101,7 @@ def register():
 
     return render_template('auth.html', mode='register')
     
-@app.route('/lectures')
+@app.route('/teacher')
 @login_required
 def lectures():
     if current_user.role != 'teacher':
@@ -109,7 +109,7 @@ def lectures():
     lessons = get_todays_lessons(current_user.id)
     return render_template('teacher.html', lectures=lessons, now=datetime.now())
 
-@app.route('/dashboard')  # студент
+@app.route('/student')  # студент
 @login_required
 def student_dashboard():
     if current_user.role != 'student':
@@ -173,8 +173,8 @@ def api_scan():
         return jsonify({'status': 'error', 'message': 'Не хватает данных'}), 400
 
     try:
-        # 1 Проверяем подпись и срок (max_age=10 сек)
-        token_data = serializer.loads(token, max_age=10)  # ← автоматически проверяет подпись и время!
+        # 1 Проверяем подпись и срок (max_age=5 сек)
+        token_data = serializer.loads(token, max_age=5)  # ← автоматически проверяет подпись и время!
         expected_item_id, expected_date = token_data.split(':', 1)
         
         # 2 Проверяем, что данные совпадают
@@ -206,11 +206,18 @@ def api_scan():
         )
         db.session.add(attendance)
         db.session.commit()
-        return jsonify({'status': 'success', 'message': '✅ Посещение засчитано!'})
+        return jsonify({'status': 'success', 'message': ' Посещение засчитано!'})
     
     except Exception as e:
         return jsonify({'status': 'error', 'message': 'Неверный формат даты'}), 400
     
+@app.route('/scan')
+@login_required
+def scan():
+    if current_user.role != 'student':
+        flash('Доступно только студентам', 'error')
+        return redirect(url_for('login'))
+    return render_template('scan.html')
 
 @app.route('/logout')
 def logout():
@@ -246,8 +253,9 @@ def api_add_schedule_item():
     data = request.get_json()
     try:
         # Валидация
-        for field in ['day_of_week', 'week_parity', 'start_time', 'end_time', 'subject', 'group_name']:
-            if not data.get(field):
+        required_fields = ['day_of_week', 'week_parity', 'start_time', 'end_time', 'subject', 'group_name']
+        for field in required_fields:
+            if field not in data or data[field] is None:
                 return jsonify({'error': f'Поле {field} обязательно'}), 400
 
         item = ScheduleItem(
@@ -270,7 +278,7 @@ def api_add_schedule_item():
 
     except Exception as e:
         db.session.rollback()
-        print("❌ Ошибка:", e)
+        print("Ошибка:", e)
         return jsonify({'error': 'Не удалось сохранить'}), 500
     
 @app.route('/api/teacher/schedule/<int:item_id>', methods=['DELETE'])
@@ -284,6 +292,206 @@ def api_delete_schedule_item(item_id):
     db.session.commit()
     return jsonify({'message': 'Удалено'}), 200
 
+# Статистика
+@app.route('/attendance')
+@login_required
+def attendance():
+    if current_user.role != 'student':
+        flash('Статистика доступна только студентам', 'error')
+        return redirect(url_for('login'))
+    return render_template('attendance.html')
+
+from sqlalchemy import func
+
+@app.route('/api/attendance')
+@login_required
+def api_attendance():
+    if current_user.role != 'student':
+        return jsonify({'error': 'Только для студентов'}), 403
+
+    group = current_user.group
+    if not group:
+        return jsonify([])
+
+    result = db.session.query(
+        ScheduleItem.subject,
+        func.count(ScheduleItem.id).label('total'),
+        func.count(Attendance.id).label('attended')
+    ).outerjoin(
+        Attendance,
+        (Attendance.schedule_item_id == ScheduleItem.id) &
+        (Attendance.student_id == current_user.id)
+    ).filter(
+        ScheduleItem.group_name == group
+    ).group_by(ScheduleItem.subject).all()
+
+    return jsonify([
+        {
+            "subject": row.subject,
+            "total": row.total,
+            "attended": row.attended
+        }
+        for row in result
+    ])
+
+@app.route('/teacher/attendance')
+@login_required
+def teacher_attendance():
+    if current_user.role != 'teacher':
+        flash('Доступ разрешён только преподавателям', 'error')
+        return redirect(url_for('login'))
+    groups = db.session.query(ScheduleItem.group_name).filter_by(
+        teacher_id=current_user.id
+    ).distinct().all()
+    groups = [g[0] for g in groups if g[0]]
+    return render_template('teacher_attendance.html', groups=groups)
+
+from datetime import datetime
+
+@app.route('/api/teacher/attendance')
+@login_required
+def api_teacher_attendance():
+    if current_user.role != 'teacher':
+        return jsonify({'error': 'Доступ запрещён'}), 403
+
+    group = request.args.get('group')
+    date_str = request.args.get('date')
+    
+    if not date_str:
+        return jsonify({'error': 'Параметр date обязателен'}), 400
+
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        return jsonify({'error': 'Неверный формат даты (YYYY-MM-DD)'}), 400
+
+    # Получаем занятия преподавателя на эту дату
+    semester_start = date(2025, 9, 1)
+    week_num = ((target_date - semester_start).days // 7) + 1
+    parity = week_num % 2
+    dow = target_date.isoweekday()
+
+    query = ScheduleItem.query.filter_by(
+        teacher_id=current_user.id,
+        day_of_week=dow,
+        week_parity=parity
+    )
+    if group:
+        query = query.filter_by(group_name=group)
+    lessons = query.all()
+
+    result = []
+
+    for lesson in lessons:
+        # Получаем студентов группы
+        students = User.query.filter_by(
+            role='student',
+            group=lesson.group_name
+        ).all()
+
+        student_list = []
+        for student in students:
+            attendance = Attendance.query.filter_by(
+                student_id=student.id,
+                schedule_item_id=lesson.id,
+                date=target_date
+            ).first()
+
+            student_list.append({
+                'name': student.username,
+                'attended': bool(attendance),
+                'timestamp': attendance.created_at.isoformat() if attendance and hasattr(attendance, 'created_at') else None
+            })
+
+        result.append({
+            'subject': lesson.subject,
+            'time': f"{lesson.start_time}–{lesson.end_time}",
+            'group_name': lesson.group_name,
+            'students': student_list
+        })
+
+    return jsonify({
+        'date': target_date.isoformat(),
+        'lessons': result
+    })
+
+from flask import send_file
+import pandas as pd
+from io import BytesIO
+
+@app.route('/api/teacher/attendance/export')
+@login_required
+def export_attendance_excel():
+    if current_user.role != 'teacher':
+        return jsonify({'error': 'Доступ запрещён'}), 403
+
+    group = request.args.get('group')
+    date_str = request.args.get('date')
+    
+    if not date_str:
+        return jsonify({'error': 'date обязателен'}), 400
+
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        return jsonify({'error': 'Неверный формат даты'}), 400
+
+    # Получаем данные (аналогично api_teacher_attendance)
+    semester_start = date(2025, 9, 1)
+    week_num = ((target_date - semester_start).days // 7) + 1
+    parity = week_num % 2
+    dow = target_date.isoweekday()
+
+    query = ScheduleItem.query.filter_by(
+        teacher_id=current_user.id,
+        day_of_week=dow,
+        week_parity=parity
+    )
+    if group:
+        query = query.filter_by(group_name=group)
+    lessons = query.all()
+
+    rows = []
+    for lesson in lessons:
+        students = User.query.filter_by(role='student', group=lesson.group_name).all()
+        for student in students:
+            att = Attendance.query.filter_by(
+                student_id=student.id,
+                schedule_item_id=lesson.id,
+                date=target_date
+            ).first()
+            rows.append({
+                'Группа': lesson.group_name,
+                'Предмет': lesson.subject,
+                'Время': f"{lesson.start_time}–{lesson.end_time}",
+                'Студент': student.username,
+                'Статус': 'Присутствует' if att else 'Отсутствует',
+                'Дата': target_date.isoformat(),
+                'Время отметки': att.created_at.strftime('%H:%M:%S') if att and hasattr(att, 'created_at') else ''
+            })
+
+    if not rows:
+        rows = [{'Группа': group or '', 'Предмет': '', 'Время': '', 'Студент': 'Нет данных', 'Статус': '', 'Дата': date_str, 'Время отметки': ''}]
+
+    df = pd.DataFrame(rows)
+    
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Посещаемость')
+        worksheet = writer.sheets['Посещаемость']
+        for column_cells in worksheet.columns:
+            length = max(len(str(cell.value)) for cell in column_cells)
+            worksheet.column_dimensions[column_cells[0].column_letter].width = min(length + 2, 30)
+
+    output.seek(0)
+    filename = f"Посещаемость_{group or 'все'}_{target_date}.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
 
 
 @app.route('/')
@@ -293,5 +501,5 @@ def home():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        print("✅ Таблицы созданы!")
+        print("Таблицы созданы!")
     app.run(debug=True)
