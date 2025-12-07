@@ -6,8 +6,8 @@ class TeacherScheduleApp {
         this.fullSchedule = {}; // { "2025-10-01": [...] }
         this.semesterStart = new Date(2025, 8, 1); // 1 сентября 2025 (месяцы с 0!)
         this.groups = [
-            'Д-Э 301', 'Д-Э 302', 'Д-Э 303', 'Д-Э 304', 'Д-Э 305',
-            'Д-Э 306', 'Д-Э 307', 'Д-Э 308', 'Д-Э 309', 'Д-Э 310'
+            'Д-Э 307', 'Д-Э 309', 'Д-Э 310', 'Д-Э 342', 'Д-Э 317',
+            'Д-Э 341', 'Д-Э 312', 'Д-Э 315', 'Д-Э 318', 'Д-Э 316', "Д-Э 343", "Д-Э 301"
         ];
         this.editingClassId = null;
         this.editingDateString = null;
@@ -172,50 +172,52 @@ class TeacherScheduleApp {
         document.getElementById('teacher-addClassModal').style.display = 'none';
     }
 
-    async addNewClass() {
-        const name = document.getElementById('teacher-newClassName').value.trim();
-        const time = document.getElementById('teacher-newClassTime').value.trim();
-        const group = document.getElementById('teacher-newClassGroup').value;
-        if (!name || !time || !group) return alert('Заполните все поля');
+  async addNewClass() {
+    const name = document.getElementById('teacher-newClassName').value.trim();
+    const timeSelect = document.getElementById('teacher-newClassTime'); // ← добавили!
+    const group = document.getElementById('teacher-newClassGroup').value;
 
-        const parts = time.split(/[–\-]/).map(t => t.trim());
-        if (parts.length < 2) return alert('Формат времени: 9:00–10:35');
-
-        const { parity } = this.getWeekInfo(this.selectedDate);
-        const dow = this.selectedDate.getDay() === 0 ? 7 : this.selectedDate.getDay();
-
-        try {
-            const res = await fetch('/api/teacher/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    day_of_week: dow,
-                    week_parity: parity,
-                    start_time: parts[0] + ':00',
-                    end_time: parts[1] + ':00',
-                    subject: name,
-                    group_name: group
-                })
-            });
-
-            if (res.ok) {
-                await this.loadSchedule();
-                this.renderCalendar();
-                this.showClassesForDate(this.selectedDate);
-                this.hideAddClassModal();
-
-                // Сброс формы
-                document.getElementById('teacher-newClassName').value = '';
-                document.getElementById('teacher-newClassTime').value = '';
-                document.getElementById('teacher-newClassGroup').value = '';
-            } else {
-                const err = await res.json();
-                alert(err.error || 'Ошибка сохранения');
-            }
-        } catch (e) {
-            alert('Сетевая ошибка');
-        }
+    if (!name || !timeSelect.value || !group) {
+        return alert('Заполните все поля');
     }
+
+    const timeValue = timeSelect.value; // теперь timeSelect существует
+    const [startTime, endTime] = timeValue.split('|');
+
+    const { parity } = this.getWeekInfo(this.selectedDate);
+    const dow = this.selectedDate.getDay() === 0 ? 7 : this.selectedDate.getDay();
+
+    try {
+        const res = await fetch('/api/teacher/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                day_of_week: dow,
+                week_parity: parity,
+                start_time: startTime,
+                end_time: endTime,
+                subject: name,
+                group_name: group
+            })
+        });
+
+        if (res.ok) {
+            await this.loadSchedule();
+            this.renderCalendar();
+            this.showClassesForDate(this.selectedDate);
+            this.hideAddClassModal();
+            // сброс формы
+            document.getElementById('teacher-newClassName').value = '';
+            document.getElementById('teacher-newClassTime').value = '';
+            document.getElementById('teacher-newClassGroup').value = '';
+        } else {
+            const err = await res.json();
+            alert(err.error || 'Ошибка сохранения');
+        }
+    } catch (e) {
+        alert('Сетевая ошибка');
+    }
+}
 
     async deleteClass(dateStr, id) {
         if (!confirm('Вы уверены, что хотите удалить это занятие?')) return;
@@ -247,38 +249,44 @@ class TeacherScheduleApp {
         this.showEditClassModal();
     }
 
-    async saveClassChanges() {
-        const name = document.getElementById('teacher-editClassName').value.trim();
-        const time = document.getElementById('teacher-editClassTime').value.trim();
-        const group = document.getElementById('teacher-editClassGroup').value;
-        if (!name || !time || !group) return alert('Заполните все поля');
+async saveClassChanges() {
+    const name = document.getElementById('teacher-editClassName').value.trim();
+    const timeValue = document.getElementById('teacher-editClassTime').value;
+    const group = document.getElementById('teacher-editClassGroup').value.trim();
 
-        const parts = time.split(/[–\-]/).map(t => t.trim());
-        if (parts.length < 2) return alert('Формат времени: 9:00–10:35');
-
-        try {
-            const res = await fetch(`/api/teacher/schedule/${this.editingClassId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject: name,
-                    start_time: parts[0] + ':00',
-                    end_time: parts[1] + ':00',
-                    group_name: group
-                })
-            });
-
-            if (res.ok) {
-                await this.loadSchedule();
-                this.showClassesForDate(this.selectedDate);
-                this.hideEditClassModal();
-            } else {
-                alert('Не удалось сохранить изменения');
-            }
-        } catch (e) {
-            alert('Ошибка сохранения');
-        }
+    if (!name || !timeValue || !group) {
+        return alert('Заполните все поля');
     }
+
+    const [startTime, endTime] = timeValue.split('|');
+
+   try {
+        const res = await fetch(`/api/teacher/schedule/${this.editingClassId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject: name,
+                group: group,
+                start_time: startTime,   // "09:00"
+                end_time: endTime        // "10:35"
+            })
+        });
+
+        if (res.ok) {
+            await this.loadSchedule();
+            this.showClassesForDate(this.selectedDate);
+            this.hideEditClassModal();
+            alert('Занятие обновлено!');
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert(` Ошибка: ${err.error || 'неизвестная ошибка сервера (статус ' + res.status + ')'}`);
+            console.error('Ответ сервера:', err);
+        }
+    } catch (e) {
+        alert(' Ошибка сети: ' + e.message);
+        console.error(e);
+    }
+}
 
     showEditClassModal() {
         document.getElementById('teacher-editClassModal').style.display = 'flex';

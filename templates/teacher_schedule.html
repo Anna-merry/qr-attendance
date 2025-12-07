@@ -67,23 +67,32 @@
                 <input type="text" class="form-input" id="teacher-newClassName" placeholder="Введите название предмета">
             </div>
             <div class="form-group">
-                <label class="form-label">Время</label>
-                <input type="text" class="form-input" id="teacher-newClassTime" placeholder="Например: 9:00 - 10:35">
-            </div>
+                <label class="form-label">Время занятия</label>
+    <select name="time_slot"id="teacher-newClassTime" class="form-input" required>
+        <option value="">— Выберите пару —</option>
+             <option value="09:00|10:35">9:00–10:35</option>
+        <option value="10:55|12:30">10:55–12:30</option>
+        <option value="13:00|14:35">13:00–14:35</option>
+        <option value="14:55|16:30">14:55–16:30</option>
+        <option value="16:55|18:30">16:55–18:30</option>
+    </select>
+</div>
             <div class="form-group">
                 <label class="form-label">Группа</label>
                 <select class="form-select" id="teacher-newClassGroup">
                     <option value="">Выберите группу</option>
-                    <option value="Д-Э 301">Д-Э 301</option>
-                    <option value="Д-Э 302">Д-Э 302</option>
-                    <option value="Д-Э 303">Д-Э 303</option>
-                    <option value="Д-Э 304">Д-Э 304</option>
-                    <option value="Д-Э 305">Д-Э 305</option>
-                    <option value="Д-Э 306">Д-Э 306</option>
                     <option value="Д-Э 307">Д-Э 307</option>
-                    <option value="Д-Э 308">Д-Э 308</option>
                     <option value="Д-Э 309">Д-Э 309</option>
                     <option value="Д-Э 310">Д-Э 310</option>
+                    <option value="Д-Э 342">Д-Э 342</option>
+                    <option value="Д-Э 317">Д-Э 317</option>
+                    <option value="Д-Э 341">Д-Э 341</option>
+                    <option value="Д-Э 312">Д-Э 312</option>
+                    <option value="Д-Э 315">Д-Э 315</option>
+                    <option value="Д-Э 318">Д-Э 318</option>
+                    <option value="Д-Э 316">Д-Э 316</option>
+                    <option value="Д-Э 343">Д-Э 343</option>
+                    <option value="Д-Э 301">Д-Э 301</option>
                 </select>
             </div>
             <div class="modal-actions">
@@ -103,22 +112,32 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Время</label>
-                <input type="text" class="form-input" id="teacher-editClassTime" placeholder="Например: 9:00 - 10:35">
-            </div>
+                <select name="time_slot" id="teacher-editClassTime" class="form-input" required>
+        <option value="">— Выберите пару —</option>
+        <option value="09:00|10:35">9:00–10:35</option>
+        <option value="10:55|12:30">10:55–12:30</option>
+        <option value="13:00|14:35">13:00–14:35</option>
+        <option value="14:55|16:30">14:55–16:30</option>
+        <option value="16:55|18:30">16:55–18:30</option>
+    </select>
+</div>
             <div class="form-group">
                 <label class="form-label">Группа</label>
                 <select class="form-select" id="teacher-editClassGroup">
                     <option value="">Выберите группу</option>
-                    <option value="Д-Э 301">Д-Э 301</option>
-                    <option value="Д-Э 302">Д-Э 302</option>
-                    <option value="Д-Э 303">Д-Э 303</option>
-                    <option value="Д-Э 304">Д-Э 304</option>
-                    <option value="Д-Э 305">Д-Э 305</option>
-                    <option value="Д-Э 306">Д-Э 306</option>
                     <option value="Д-Э 307">Д-Э 307</option>
-                    <option value="Д-Э 308">Д-Э 308</option>
                     <option value="Д-Э 309">Д-Э 309</option>
                     <option value="Д-Э 310">Д-Э 310</option>
+                    <option value="Д-Э 342">Д-Э 342</option>
+                    <option value="Д-Э 317">Д-Э 317</option>
+                    <option value="Д-Э 341">Д-Э 341</option>
+                    <option value="Д-Э 312">Д-Э 312</option>
+                    <option value="Д-Э 315">Д-Э 315</option>
+                    <option value="Д-Э 318">Д-Э 318</option>
+                    <option value="Д-Э 316">Д-Э 316</option>
+                    <option value="Д-Э 343">Д-Э 343</option>
+                    <option value="Д-Э 301">Д-Э 301</option>
+
                 </select>
             </div>
             <div class="modal-actions">

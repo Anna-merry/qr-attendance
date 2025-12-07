@@ -11,7 +11,7 @@
     <div class="schedule-section">
         <h3>Ближайшие занятия на сегодня (<span id="current-date">чт, 30.10</span>):</h3>
         <div class="classes-container">
-            {% for item in lectures %}  <!-- lectures, а не lessons -->
+            {% for item in lectures %}  
         <div class="class-card">
             <h4>{{ item.subject }}</h4>
          <div class="class-time">
@@ -28,7 +28,6 @@
 </div>
 
 <script>
-// Обновление даты (можно оставить или вынести в JS-файл)
 function updateCurrentDate() {
     const now = new Date();
     const days = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];

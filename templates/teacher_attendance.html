@@ -6,7 +6,7 @@
 {% block content %}
 <div class="container">
     <div class="welcome-section">
-        <h2>📊 Посещаемость студентов</h2>
+        <h2>Посещаемость студентов</h2>
         <p>Выберите группу и дату для просмотра</p>
     </div>
 
@@ -26,7 +26,7 @@
         </div>
         <div style="align-self: flex-end;">
             <button id="export-btn" class="btn btn-success" onclick="exportToExcel()">
-                📥 Экспорт в Excel
+             Экспорт в Excel
             </button>
         </div>
     </div>
@@ -108,7 +108,7 @@ async function loadAttendance() {
 
         renderTable(data, group, dateStr);
     } catch (err) {
-        container.innerHTML = `<p style="color: red;">❌ ${err.message}</p>`;
+        container.innerHTML = `<p style="color: red;"> ${err.message}</p>`;
     }
 }
 
@@ -142,7 +142,7 @@ function renderTable(data, group, dateStr) {
             html += `<tr><td colspan="3">Нет студентов в группе</td></tr>`;
         } else {
             lesson.students.forEach(student => {
-                const status = student.attended ? '✅ Присутствует' : '❌ Отсутствует';
+                const status = student.attended ? 'Присутствует' : 'Отсутствует';
                 const statusClass = student.attended ? 'status-present' : 'status-absent';
                 const timestamp = student.timestamp ? new Date(student.timestamp).toLocaleTimeString('ru-RU') : '—';
 

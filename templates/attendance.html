@@ -118,7 +118,7 @@ async function renderAttendanceData() {
         }
 
         data.forEach(subj => {
-            const percent = subj.total ? Math.round((subj.attended / subj.total) * 100) : 0;
+            const percent = subj.expected ? Math.round((subj.attended / subj.expected) * 100) : 0;
             let color = "#ff4d4d"; // красный — критично
             let icon = `
                 <svg class="attendance-icon" viewBox="0 0 24 24" fill="${color}">
@@ -146,7 +146,7 @@ async function renderAttendanceData() {
                 <div class="attendance-card">
                     <div class="attendance-header">
                         <div class="attendance-subject">${subj.subject}</div>
-                        <div class="attendance-count">${subj.attended}/${subj.total}</div>
+                        <div class="attendance-count">${subj.attended}/${subj.expected}</div>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${percent}%; background: ${color};"></div>
@@ -163,7 +163,7 @@ async function renderAttendanceData() {
 
     } catch (error) {
         console.error('Ошибка при загрузке посещаемости:', error);
-        container.innerHTML = `<p style="text-align: center; padding: 30px; color: red;">⛔ Ошибка: ${error.message}</p>`;
+        container.innerHTML = `<p style="text-align: center; padding: 30px; color: red;">Ошибка: ${error.message}</p>`;
     }
 }
 

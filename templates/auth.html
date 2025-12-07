@@ -32,11 +32,23 @@
             </div>
 
             <div class="form-group" id="group-field" style="display: none;">
-                <label class="form-label">Группа</label>
-                <input type="text" name="group" class="form-input" 
-                value="{{ request.form.group or '' }}" 
-                placeholder="Введите вашу группу">
-            </div>
+    <label class="form-label">Группа</label>
+    <select name="group" class="form-select" required>
+        <option value="">— Выберите группу —</option>
+        <option value="Д-Э 307" {% if request.form.group == 'Д-Э 307' %}selected{% endif %}>Д-Э 307</option>
+        <option value="Д-Э 309" {% if request.form.group == 'Д-Э 309' %}selected{% endif %}>Д-Э 309</option>
+        <option value="Д-Э 310" {% if request.form.group == 'Д-Э 310' %}selected{% endif %}>Д-Э 310</option>
+        <option value="Д-Э 342" {% if request.form.group == 'Д-Э 342' %}selected{% endif %}>Д-Э 342</option>
+        <option value="Д-Э 317" {% if request.form.group == 'Д-Э 317' %}selected{% endif %}>Д-Э 317</option>
+        <option value="Д-Э 341" {% if request.form.group == 'Д-Э 341' %}selected{% endif %}>Д-Э 341</option>
+        <option value="Д-Э 312" {% if request.form.group == 'Д-Э 312' %}selected{% endif %}>Д-Э 312</option>
+        <option value="Д-Э 315" {% if request.form.group == 'Д-Э 315' %}selected{% endif %}>Д-Э 315</option>
+        <option value="Д-Э 318" {% if request.form.group == 'Д-Э 318' %}selected{% endif %}>Д-Э 318</option>
+        <option value="Д-Э 316" {% if request.form.group == 'Д-Э 316' %}selected{% endif %}>Д-Э 316</option>
+        <option value="Д-Э 343" {% if request.form.group == 'Д-Э 343' %}selected{% endif %}>Д-Э 343</option>
+        <option value="Д-Э 301" {% if request.form.group == 'Д-Э 301' %}selected{% endif %}>Д-Э 301</option>
+    </select>
+</div>
 
             <div class="form-group">
                 <label class="form-label">Имя и фамилия</label>
@@ -69,14 +81,14 @@
 function toggleGroupField() {
     const role = document.getElementById('user-role').value;
     const groupField = document.getElementById('group-field');
-    const groupInput = groupField.querySelector('input[name="group"]');
+    const groupSelect = groupField.querySelector('select[name="group"]'); // ← изменили имя переменной
     
     if (role === 'student') {
         groupField.style.display = 'block';
-        groupInput.setAttribute('required', 'required');
+        groupSelect.setAttribute('required', 'required');
     } else {
         groupField.style.display = 'none';
-        groupInput.removeAttribute('required');
+        groupSelect.removeAttribute('required');
     }
 }
 document.addEventListener('DOMContentLoaded', function() {

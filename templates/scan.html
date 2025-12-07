@@ -73,11 +73,11 @@ function scanFrame() {
                 .then(data => {
                     const statusEl = document.getElementById('status');
                     if (data.status === 'success') {
-                        statusEl.innerHTML = `<span style="color: green; font-size: 18px;">✅ ${data.message}</span>`;
+                        statusEl.innerHTML = `<span style="color: green; font-size: 18px;"> ${data.message}</span>`;
                         // Останавливаем камеру
                         video.srcObject?.getTracks().forEach(t => t.stop());
                     } else {
-                        statusEl.innerHTML = `<span style="color: red;">❌ ${data.message}</span>`;
+                        statusEl.innerHTML = `<span style="color: red;"> ${data.message}</span>`;
                     }
                 })
                 .catch(err => {

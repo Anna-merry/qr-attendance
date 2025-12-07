@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from datetime import datetime, date, timedelta
 import qrcode
@@ -281,6 +281,57 @@ def api_add_schedule_item():
         print("Ошибка:", e)
         return jsonify({'error': 'Не удалось сохранить'}), 500
     
+@app.route('/api/teacher/schedule/<int:item_id>', methods=['PUT'])
+@login_required
+def update_schedule_item(item_id):
+    if current_user.role != 'teacher':
+        return jsonify({'error': 'Только для преподавателей'}), 403
+
+    data = request.get_json()
+    subject = data.get('subject')
+    group = data.get('group')
+    start_time_str = data.get('start_time')  # "09:00:00"
+    end_time_str = data.get('end_time')      # "10:35:00"
+
+    if not subject or not group or not start_time_str or not end_time_str:
+        return jsonify({'error': 'Все поля обязательны'}), 400
+
+    item = ScheduleItem.query.get_or_404(item_id)
+
+    if item.teacher_id != current_user.id:
+        return jsonify({'error': 'Это не ваше занятие'}), 403
+
+    try:
+        start_time = datetime.strptime(start_time_str, '%H:%M').time()
+        end_time = datetime.strptime(end_time_str, '%H:%M').time()
+
+        item.subject = subject
+        item.group_name = group
+        item.start_time = start_time
+        item.end_time = end_time
+        
+
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Занятие в шаблоне обновлено',
+            'item': {
+                'id': item.id,
+                'subject': item.subject,
+                'group': item.group_name,
+                'start_time': item.start_time.strftime('%H:%M'),
+                'end_time': item.end_time.strftime('%H:%M')
+            }
+        })
+
+    except ValueError as e:
+        return jsonify({'error': f'Неверный формат времени: {e}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        print("Ошибка обновления:", e)
+        return jsonify({'error': 'Не удалось обновить'}), 5000
+
 @app.route('/api/teacher/schedule/<int:item_id>', methods=['DELETE'])
 @login_required
 def api_delete_schedule_item(item_id):
@@ -313,26 +364,41 @@ def api_attendance():
     if not group:
         return jsonify([])
 
-    result = db.session.query(
-        ScheduleItem.subject,
-        func.count(ScheduleItem.id).label('total'),
-        func.count(Attendance.id).label('attended')
-    ).outerjoin(
-        Attendance,
-        (Attendance.schedule_item_id == ScheduleItem.id) &
-        (Attendance.student_id == current_user.id)
-    ).filter(
-        ScheduleItem.group_name == group
-    ).group_by(ScheduleItem.subject).all()
+    start_date = date(2025, 9, 1)
+    end_date = date(2025, 12, 20)
 
-    return jsonify([
-        {
-            "subject": row.subject,
-            "total": row.total,
-            "attended": row.attended
-        }
-        for row in result
-    ])
+    items = ScheduleItem.query.filter_by(group_name=group).all()
+
+    # Группируем по subject + group
+    from collections import defaultdict
+    stats_by_subject = defaultdict(lambda: {"expected": 0, "attended": 0})
+
+    for item in items:
+        attended = Attendance.query.filter(
+            Attendance.student_id == current_user.id,
+            Attendance.schedule_item_id == item.id,
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).count()
+
+        expected = count_expected_lectures(item, start_date, end_date)
+
+        key = (item.subject, item.group_name)
+        stats_by_subject[key]["expected"] += expected
+        stats_by_subject[key]["attended"] += attended
+
+    result = []
+    for (subject, group_name), stat in stats_by_subject.items():
+        percentage = round(stat["attended"] / stat["expected"] * 100, 1) if stat["expected"] else 0
+        result.append({
+            "subject": subject,
+            "group": group_name,
+            "expected": stat["expected"],
+            "attended": stat["attended"],
+            "percentage": percentage
+        })
+
+    return jsonify(result)
 
 @app.route('/teacher/attendance')
 @login_required
@@ -400,7 +466,7 @@ def api_teacher_attendance():
             student_list.append({
                 'name': student.username,
                 'attended': bool(attendance),
-                'timestamp': attendance.created_at.isoformat() if attendance and hasattr(attendance, 'created_at') else None
+                'timestamp': attendance.scanned_at.isoformat() if attendance and hasattr(attendance, 'scanned_at') else None
             })
 
         result.append({
@@ -467,7 +533,7 @@ def export_attendance_excel():
                 'Студент': student.username,
                 'Статус': 'Присутствует' if att else 'Отсутствует',
                 'Дата': target_date.isoformat(),
-                'Время отметки': att.created_at.strftime('%H:%M:%S') if att and hasattr(att, 'created_at') else ''
+                'Время отметки': att.scanned_at.strftime('%H:%M:%S') if att and hasattr(att, 'createt') else ''
             })
 
     if not rows:
@@ -492,6 +558,24 @@ def export_attendance_excel():
         download_name=filename
     )
 
+from datetime import date, timedelta
+
+def count_expected_lectures(schedule_item, start_date, end_date):
+    """Считает, сколько раз занятие по шаблону должно быть в периоде."""
+    count = 0
+    current = start_date
+    semester_start = date(2025, 9, 1)  # начало семестра
+
+    while current <= end_date:
+        # Совпадает ли день недели?
+        if current.isoweekday() == schedule_item.day_of_week:
+            # Совпадает ли чётность?
+            weeks_since_start = (current - semester_start).days // 7
+            current_parity = weeks_since_start % 2
+            if current_parity == schedule_item.week_parity:
+                count += 1
+        current += timedelta(days=1)
+    return count
 
 
 @app.route('/')
