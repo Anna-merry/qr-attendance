@@ -19,31 +19,38 @@
         <p>Преподаватель</p>
     </div>
 
-   <div class="schedule-section">
-        <h3>Занятия на сегодня (
-            {{ now.strftime('%a, %d.%m')|lower|replace('mon','пн')|replace('tue','вт')|replace('wed','ср')|replace('thu','чт')|replace('fri','пт')|replace('sat','сб')|replace('sun','вс') }}
-        ):</h3>
+    <div class="schedule-section">
+        <h3>Ближайшие занятия на сегодня (<span id="current-date">чт, 30.10</span>):</h3>
         <div class="classes-container">
-            {% if lectures %}
-                {% for lesson in lectures %}
-                <div class="class-card">
-                    <h4>{{ lesson.subject or 'Без названия' }}</h4>
-                    <div class="class-time">
-                        <span class="time-slot">
-                      {{ lesson.start_time.strftime('%H:%M') }}–{{ lesson.end_time.strftime('%H:%M') }}
-                       </span>
-                    <span class="group-name">{{ lesson.group_name or '—' }}</span>
-                        <a href="{{ url_for('qr_fullscreen', item_id=lesson.id) }}" class="mark-btn">
-                            Отметиться
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="no-classes">Сегодня занятий нет</div>
-            {% endif %}
+        {% if lectures %}
+            {% for item in lectures %}  
+        <div class="class-card">
+            <h4>{{ item.subject }}</h4>
+         <div class="class-time">
+              <span class="time-slot">{{ item.start_time.strftime('%H:%M') }}–{{ item.end_time.strftime('%H:%M') }}</span>
+              <span class="group-name">{{ item.group_name }}</span>
+              <a href="{{ url_for('qr_fullscreen', item_id=item.id) }}" class="mark-btn">
+            Отметить
+              </a>
+         </div>
         </div>
-    </div> 
+            {% endfor %}
+        {% else %}
+                <div class="no-classes">Сегодня занятий нет</div>
+        {% endif %}
+        </div>
+    </div>
 </div>
+
+<script>
+function updateCurrentDate() {
+    const now = new Date();
+    const days = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+    const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    const dateString = `${days[now.getDay()]}, ${now.getDate()}.${months[now.getMonth()]}`;
+    document.getElementById('current-date').textContent = dateString;
+}
+updateCurrentDate();
+</script>
 
 {% endblock %}

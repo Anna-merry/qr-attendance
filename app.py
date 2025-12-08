@@ -13,14 +13,21 @@ from models import db, User,  Attendance, ScheduleItem
 from helpers import expand_schedule_to_semester, generate_token
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:mypostgrespwd@localhost:5432/qr_attendance'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL') or 'postgresql://postgres:mypostgrespwd@localhost:5432/qr_attendance'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+uri = app.config['SQLALCHEMY_DATABASE_URI']
+if uri.startswith("postgres://"):
+    app.config['SQLALCHEMY_DATABASE_URI'] = uri.replace("postgres://", "postgresql://", 1)
+
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
+with app.app_context():
+    db.create_all()
 login_manager.login_view = 'login'
 
 # Вспомогательная функция
@@ -28,7 +35,7 @@ def get_todays_lessons(teacher_id, target_date=None):
     if target_date is None:
         target_date = date.today()
     
-    semester_start = date(2025, 10, 1)
+    semester_start = date(2025, 9, 1)
     days_diff = (target_date - semester_start).days
     week_num = days_diff // 7 + 1
     parity = week_num % 2
@@ -146,7 +153,7 @@ def qr_fullscreen(item_id):
 @app.route('/qr-image/<int:item_id>/<date_str>/<token>')
 def qr_image(item_id, date_str, token):
     # Без @login_required — студенты должны видеть QR!
-    scan_url = url_for('api_scan', item_id=item_id, date=date_str, token=token, _external=True)
+    scan_url = url_for('scan', item_id=item_id, date=date_str, token=token, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(scan_url)
     qr.make(fit=True)
@@ -217,7 +224,14 @@ def scan():
     if current_user.role != 'student':
         flash('Доступно только студентам', 'error')
         return redirect(url_for('login'))
-    return render_template('scan.html')
+    
+    item_id = request.args.get('item_id')
+    date_str = request.args.get('date')
+    token = request.args.get('token')
+    
+    #print(f"→ /scan получены параметры: item_id={item_id}, date={date_str}, token={token[:20]}...")
+    
+    return render_template('scan.html', item_id=item_id, date=date_str, token=token)
 
 @app.route('/logout')
 def logout():
@@ -582,8 +596,8 @@ def count_expected_lectures(schedule_item, start_date, end_date):
 def home():
     return render_template('index2.html')
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        print("Таблицы созданы!")
-    app.run(debug=True)
+#if __name__ == '__main__':
+#    with app.app_context():
+ #       db.create_all()
+#        print("Таблицы созданы!")
+#   app.run(debug=True)

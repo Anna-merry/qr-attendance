@@ -17,9 +17,9 @@
          <div class="class-time">
               <span class="time-slot">{{ item.start_time.strftime('%H:%M') }}–{{ item.end_time.strftime('%H:%M') }}</span>
               <span class="group-name">{{ item.group_name }}</span>
-              <a href="{{ url_for('qr_fullscreen', item_id=item.id) }}" class="mark-btn">
-            Отметиться
-              </a>
+              <a href="{{ url_for('scan') }}" class="mark-btn">
+  Отметиться 
+</a>
          </div>
         </div>
 {% endfor %}

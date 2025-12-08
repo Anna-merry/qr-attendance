@@ -96,5 +96,50 @@ function scanFrame() {
 
 // Запуск при клике
 document.getElementById('start-btn').addEventListener('click', startCamera);
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const item_id = urlParams.get('item_id');
+    const date = urlParams.get('date');
+    const token = urlParams.get('token');
+
+    const statusEl = document.getElementById('status');
+
+    // Если параметры есть — отправляем автоматически
+    if (item_id && date && token) {
+        statusEl.textContent = 'Автоматическая отправка...';
+        fetch('/api/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id, date, token })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                statusEl.innerHTML = `<span style="color: green; font-size: 18px;">✅ ${data.message}</span>`;
+            } else {
+                statusEl.innerHTML = `<span style="color: red;">❌ ${data.message}</span>`;
+            }
+            // Остановить камеру, если она запущена
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(t => t.stop());
+            }
+        })
+        .catch(err => {
+            statusEl.textContent = '❌ Ошибка отправки';
+            console.error(err);
+        });
+
+        // Скрываем камеру и кнопку
+        document.getElementById('video').style.display = 'none';
+        document.getElementById('start-btn').style.display = 'none';
+    }
+    // Если параметров нет — показываем камеру
+    else {
+        statusEl.textContent = 'Ожидание QR-кода...';
+        // Кнопка "Запустить камеру" остаётся видимой
+    }
+});
 </script>
 {% endblock %}
