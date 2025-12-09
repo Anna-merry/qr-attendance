@@ -148,7 +148,7 @@ def qr_fullscreen(item_id):
     today = date.today().strftime('%Y-%m-%d')
     token_data = f"{item_id}:{today}"
     
-    token = serializer.dumps(token_data, max_age=300)
+    token = serializer.dumps(token_data)
 
     # 🔍 Отладочная печать — ДО return!
     print("DEBUG: token_data =", repr(token_data))
