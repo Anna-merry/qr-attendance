@@ -1,7 +1,7 @@
 
 class TeacherScheduleApp {
-    constructor() {
-        this.currentDate = new Date(2025, 9, 1); // Октябрь 2025
+    constructor(initialDate = new Date()) {  
+        this.currentDate = initialDate; 
         this.selectedDate = null;
         this.fullSchedule = {}; // { "2025-10-01": [...] }
         this.semesterStart = new Date(2025, 8, 1); // 1 сентября 2025 (месяцы с 0!)
@@ -310,7 +310,11 @@ async saveClassChanges() {
 }
 
 // Глобальный экземпляр
-const app = new TeacherScheduleApp();
+const serverDateStr = "{{ current_date_str }}";
+const serverDate = serverDateStr ? new Date(serverDateStr) : new Date(); // fallback на локальную
+
+// Инициализируем с серверной даты:
+const app = new TeacherScheduleApp(serverDate);
 
 // Совместимость с onclick из 123.docx
 function teacherCalendarPreviousMonth() { app.prevMonth(); }

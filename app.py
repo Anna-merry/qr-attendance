@@ -1,12 +1,16 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
+import pytz
 import qrcode
 from io import BytesIO
 import secrets
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from sqlalchemy.exc import IntegrityError 
+from sqlalchemy import func
+import pandas as pd
+from io import BytesIO
 
 # Импортируем модели и хелперы
 from models import db, User,  Attendance, ScheduleItem
@@ -81,7 +85,7 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        role = request.form.get('role', 'student')  # ← исправлено
+        role = request.form.get('role', 'student')  
         group = request.form.get('group') if role == 'student' else None
 
         # Валидация обязательных полей
@@ -102,7 +106,7 @@ def register():
             flash('Регистрация успешна! Теперь вы можете войти.', 'success')
             return redirect(url_for('login'))
         except IntegrityError:
-            db.session.rollback()  # отменяем транзакцию
+            db.session.rollback()  
             flash(f'Пользователь с логином «{username}» уже существует', 'error')
             return render_template('auth.html', mode='register')
 
@@ -145,7 +149,8 @@ def qr_fullscreen(item_id):
         abort(403)
     
     item = ScheduleItem.query.filter_by(id=item_id, teacher_id=current_user.id).first_or_404()
-    today = date.today().strftime('%Y-%m-%d')
+    moscow_tz = pytz.timezone('Europe/Moscow')
+    today = datetime.now(moscow_tz).date().strftime('%Y-%m-%d')
     token_data = f"{item_id}:{today}"
     
     token = serializer.dumps(token_data)
@@ -167,7 +172,6 @@ def qr_fullscreen(item_id):
 
 @app.route('/qr-image/<int:item_id>/<date_str>/<token>')
 def qr_image(item_id, date_str, token):
-    # Без @login_required — студенты должны видеть QR!
     scan_url = url_for('scan', item_id=item_id, date=date_str, token=token, _external=True)
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(scan_url)
@@ -196,7 +200,7 @@ def api_scan():
 
     try:
         # Проверяем токен
-        token_data = serializer.loads(token, max_age=300)  
+        token_data = serializer.loads(token, max_age=10)  
         expected_item_id, expected_date = token_data.split(':', 1)
         
         print(f"DEBUG — item_id_str: '{repr(item_id_str)}'")
@@ -227,7 +231,7 @@ def api_scan():
         # Проверяем существование занятия ДЛЯ ЭТОЙ ГРУППЫ
         item = ScheduleItem.query.filter_by(
             id=item_id,
-            group_name=current_user.group  # ← важно: только для группы студента
+            group_name=current_user.group 
         ).first()
         
         if not item:
@@ -244,10 +248,14 @@ def api_scan():
             return jsonify({'status': 'error', 'message': 'Вы уже отметились'}), 409
 
         # Сохраняем посещение
+        moscow_tz = pytz.timezone('Europe/Moscow')
+        now_moscow = datetime.now(moscow_tz)
+
         attendance = Attendance(
-            student_id=current_user.id,
-            schedule_item_id=item_id,
-            date=attendance_date
+         student_id=current_user.id,
+         schedule_item_id=item_id,
+         date=attendance_date,           # ← сохраняем дату занятия (как было)
+         scanned_at=now_moscow 
         )
         db.session.add(attendance)
         db.session.commit()
@@ -255,7 +263,7 @@ def api_scan():
         return jsonify({'status': 'success', 'message': 'Посещение засчитано!'})
 
     except SignatureExpired:
-        return jsonify({'status': 'error', 'message': 'QR-код устарел (прошло более 5 секунд)'}), 400
+        return jsonify({'status': 'error', 'message': 'QR-код устарел (прошло более 10 секунд)'}), 400
     except BadTimeSignature:
         return jsonify({'status': 'error', 'message': 'Недействительный QR-код'}), 400
     except Exception as e:
@@ -293,7 +301,9 @@ def teacher_schedule():
     if current_user.role != 'teacher':
         flash('Доступ разрешён только преподавателям', 'error')
         return redirect(url_for('login'))
-    return render_template('teacher_schedule.html')
+    moscow_now = datetime.now(pytz.timezone('Europe/Moscow'))
+    current_date_str = moscow_now.strftime('%Y-%m-%d')
+    return render_template('teacher_schedule.html', current_date_str=current_date_str)
 
 @app.route('/api/teacher/schedule')
 @login_required
@@ -349,8 +359,8 @@ def update_schedule_item(item_id):
     data = request.get_json()
     subject = data.get('subject')
     group = data.get('group')
-    start_time_str = data.get('start_time')  # "09:00:00"
-    end_time_str = data.get('end_time')      # "10:35:00"
+    start_time_str = data.get('start_time')  
+    end_time_str = data.get('end_time')      
 
     if not subject or not group or not start_time_str or not end_time_str:
         return jsonify({'error': 'Все поля обязательны'}), 400
@@ -410,8 +420,6 @@ def attendance():
         flash('Статистика доступна только студентам', 'error')
         return redirect(url_for('login'))
     return render_template('attendance.html')
-
-from sqlalchemy import func
 
 @app.route('/api/attendance')
 @login_required
@@ -525,7 +533,7 @@ def api_teacher_attendance():
             student_list.append({
                 'name': student.username,
                 'attended': bool(attendance),
-                'timestamp': attendance.scanned_at.isoformat() if attendance and hasattr(attendance, 'scanned_at') else None
+                 'timestamp': attendance.scanned_at.isoformat() if attendance else None
             })
 
         result.append({
@@ -539,10 +547,6 @@ def api_teacher_attendance():
         'date': target_date.isoformat(),
         'lessons': result
     })
-
-from flask import send_file
-import pandas as pd
-from io import BytesIO
 
 @app.route('/api/teacher/attendance/export')
 @login_required
@@ -592,7 +596,7 @@ def export_attendance_excel():
                 'Студент': student.username,
                 'Статус': 'Присутствует' if att else 'Отсутствует',
                 'Дата': target_date.isoformat(),
-                'Время отметки': att.scanned_at.strftime('%H:%M:%S') if att and hasattr(att, 'createt') else ''
+                'Время отметки': att.scanned_at.strftime('%H:%M:%S') if att else ''
             })
 
     if not rows:

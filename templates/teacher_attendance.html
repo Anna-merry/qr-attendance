@@ -144,8 +144,17 @@ function renderTable(data, group, dateStr) {
             lesson.students.forEach(student => {
                 const status = student.attended ? 'Присутствует' : 'Отсутствует';
                 const statusClass = student.attended ? 'status-present' : 'status-absent';
-                const timestamp = student.timestamp ? new Date(student.timestamp).toLocaleTimeString('ru-RU') : '—';
-
+                let timestamp = '—';
+                if (student.timestamp) {
+                   try {
+                        const ts = new Date(student.timestamp);
+                        if (!isNaN(ts.getTime())) {
+                             timestamp = ts.toLocaleTimeString('ru-RU', { hour12: false });
+                        }
+                     } catch (e) {
+                        console.error("Ошибка парсинга времени:", e);
+                     }
+                }
                 html += `
                     <tr>
                         <td>${student.name}</td>
