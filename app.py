@@ -301,8 +301,6 @@ def teacher_schedule():
     if current_user.role != 'teacher':
         flash('Доступ разрешён только преподавателям', 'error')
         return redirect(url_for('login'))
-    moscow_now = datetime.now(pytz.timezone('Europe/Moscow'))
-    current_date_str = moscow_now.strftime('%Y-%m-%d')
     return render_template('teacher_schedule.html', current_date_str=current_date_str)
 
 @app.route('/api/teacher/schedule')
