@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 import qrcode
 from io import BytesIO
 import secrets
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from sqlalchemy.exc import IntegrityError 
 
 # Импортируем модели и хелперы
@@ -143,12 +143,27 @@ def get_todays_lessons_for_group(group_name):
 def qr_fullscreen(item_id):
     if current_user.role != 'teacher':
         abort(403)
+    
     item = ScheduleItem.query.filter_by(id=item_id, teacher_id=current_user.id).first_or_404()
     today = date.today().strftime('%Y-%m-%d')
     token_data = f"{item_id}:{today}"
-    token = serializer.dumps(token_data)  # ← подписанный токен
     
-    return render_template('qr_fullscreen.html', item_id=item_id, date_str=today, token=token)
+    token = serializer.dumps(token_data, max_age=300)
+
+    # 🔍 Отладочная печать — ДО return!
+    print("DEBUG: token_data =", repr(token_data))
+    print("DEBUG: token (first 50) =", token[:50])
+    try:
+        decoded = serializer.loads(token)
+        print("✅ Token verify OK →", repr(decoded))
+    except Exception as e:
+        print("❌ Token verify FAILED:", e)
+
+    return render_template('qr_fullscreen.html', 
+                         item_id=item_id, 
+                         date_str=today, 
+                         token=token,
+                         item=item)
 
 @app.route('/qr-image/<int:item_id>/<date_str>/<token>')
 def qr_image(item_id, date_str, token):
@@ -172,51 +187,81 @@ def api_scan():
         return jsonify({'status': 'error', 'message': 'Только для студентов'}), 403
 
     data = request.get_json()
-    item_id = data.get('item_id')
-    date_str = data.get('date') 
-    token = data.get('token')
+    item_id_str = data.get('item_id', '').strip()
+    date_str = data.get('date', '').strip()
+    token = data.get('token', '').strip()
 
-    if not all([item_id, date_str, token]):
+    if not all([item_id_str, date_str, token]):
         return jsonify({'status': 'error', 'message': 'Не хватает данных'}), 400
 
     try:
-        # 1 Проверяем подпись и срок (max_age=5 сек)
-        token_data = serializer.loads(token, max_age=5)  # ← автоматически проверяет подпись и время!
+        # Проверяем токен
+        token_data = serializer.loads(token, max_age=300)  
         expected_item_id, expected_date = token_data.split(':', 1)
         
-        # 2 Проверяем, что данные совпадают
-        if int(expected_item_id) != item_id or expected_date != date_str:
-            return jsonify({'status': 'error', 'message': 'Несоответствие данных в токене'}), 400
+        print(f"DEBUG — item_id_str: '{repr(item_id_str)}'")
+        print(f"DEBUG — date_str: '{repr(date_str)}'")
+        print(f"DEBUG — token (first 20): '{token[:20]}'")
+        print(f"DEBUG — token_data: '{repr(token_data)}'")
+        print(f"DEBUG — expected: '{expected_item_id}' vs '{item_id_str}'")
 
-        # 3 Проверяем, что занятие существует и для группы студента
+        # Сравниваем как строки 
+        if expected_item_id != item_id_str or expected_date != date_str:
+            return jsonify({
+                'status': 'error',
+                'message': 'Несоответствие данных в токене'
+            }), 400
+
+        # Конвертируем в int для запроса в БД
+        try:
+            item_id = int(item_id_str)
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Неверный формат ID занятия'}), 400
+
+        # Проверяем дату
+        try:
+            attendance_date = date.fromisoformat(date_str)
+        except ValueError:
+            return jsonify({'status': 'error', 'message': 'Неверный формат даты'}), 400
+
+        # Проверяем существование занятия ДЛЯ ЭТОЙ ГРУППЫ
         item = ScheduleItem.query.filter_by(
             id=item_id,
-            group_name=current_user.group
+            group_name=current_user.group  # ← важно: только для группы студента
         ).first()
-        if not item:
-            return jsonify({'status': 'error', 'message': 'Занятие не найдено'}), 404
         
-        # 4 Проверяем, не отмечался ли уже
+        if not item:
+            return jsonify({'status': 'error', 'message': 'Занятие не найдено для вашей группы'}), 404
+        
+        # Проверяем, не отмечался ли уже
         existing = Attendance.query.filter_by(
             student_id=current_user.id,
             schedule_item_id=item_id,
-            date=date.fromisoformat(date_str)
+            date=attendance_date
         ).first()
+        
         if existing:
             return jsonify({'status': 'error', 'message': 'Вы уже отметились'}), 409
 
-        # 5 Сохраняем
+        # Сохраняем посещение
         attendance = Attendance(
             student_id=current_user.id,
             schedule_item_id=item_id,
-            date=date.fromisoformat(date_str)
+            date=attendance_date
         )
         db.session.add(attendance)
         db.session.commit()
-        return jsonify({'status': 'success', 'message': ' Посещение засчитано!'})
-    
+        
+        return jsonify({'status': 'success', 'message': 'Посещение засчитано!'})
+
+    except SignatureExpired:
+        return jsonify({'status': 'error', 'message': 'QR-код устарел (прошло более 5 секунд)'}), 400
+    except BadTimeSignature:
+        return jsonify({'status': 'error', 'message': 'Недействительный QR-код'}), 400
     except Exception as e:
-        return jsonify({'status': 'error', 'message': 'Неверный формат даты'}), 400
+        # Для отладки
+        print(f"Ошибка в api_scan: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Внутренняя ошибка сервера'}), 500
     
 @app.route('/scan')
 @login_required
@@ -597,7 +642,7 @@ def home():
     return render_template('index2.html')
 
 #if __name__ == '__main__':
-#    with app.app_context():
- #       db.create_all()
-#        print("Таблицы созданы!")
-#   app.run(debug=True)
+  # with app.app_context():
+ #      db.create_all()
+ #      print("Таблицы созданы!")
+#app.run(debug=True)

@@ -11,7 +11,7 @@
     <button id="start-btn" class="btn btn-primary">Запустить камеру</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="{{ url_for('static', filename='js/jsQR.min.js') }}"></script>
 <script>
 let video;
 let canvas;
@@ -33,7 +33,7 @@ async function startCamera() {
 
         // Запуск распознавания
         canvas = document.createElement('canvas');
-        ctx = canvas.getContext('2d');
+        ctx = canvas.getContext('2d', { willReadFrequently: true });
         requestAnimationFrame(scanFrame);
     } catch (err) {
         status.textContent = 'Ошибка: камера не доступна';
@@ -55,9 +55,10 @@ function scanFrame() {
         if (code) {
             try {
                 const url = new URL(code.data);
-                const item_id = url.searchParams.get('item_id');
-                const date = url.searchParams.get('date');
-                const token = url.searchParams.get('token');
+                const clean = s => s ? s.trim().replace(/[\x00-\x1F\x7F]/g, '') : '';
+                const item_id = clean(url.searchParams.get('item_id'));
+                const date = clean(url.searchParams.get('date'));
+                const token = clean(url.searchParams.get('token'));
 
                 if (!item_id || !date || !token) {
                     throw new Error('Нет item_id/date/token');
@@ -141,5 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Кнопка "Запустить камеру" остаётся видимой
     }
 });
+
 </script>
 {% endblock %}
