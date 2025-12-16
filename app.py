@@ -649,8 +649,8 @@ def count_expected_lectures(schedule_item, start_date, end_date):
 def home():
     return render_template('index2.html')
 
-if __name__ == '__main__':
-   with app.app_context():
-      db.create_all()
-      print("Таблицы созданы!")
-app.run(debug=True)
+#if __name__ == '__main__':
+ #  with app.app_context():
+ #     db.create_all()
+ #     print("Таблицы созданы!")
+#app.run(debug=True)

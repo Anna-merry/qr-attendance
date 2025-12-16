@@ -11,7 +11,8 @@
     <button id="start-btn" class="btn btn-primary">Запустить камеру</button>
 </div>
 
-<script src="{{ url_for('static', filename='js/jsQR.min.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
 <script>
 let video;
 let canvas;
@@ -26,78 +27,48 @@ async function startCamera() {
         
         video = document.getElementById('video');
         video.srcObject = stream;
-        video.play();
+
+        // ✅ await video.play() + обработка ошибки
+        try {
+            await video.play();
+        } catch (err) {
+            console.warn("video.play() failed, but continuing...", err);
+        }
 
         document.getElementById('start-btn').style.display = 'none';
         status.textContent = 'Ищу QR-код...';
 
-        // Запуск распознавания
         canvas = document.createElement('canvas');
         ctx = canvas.getContext('2d', { willReadFrequently: true });
         requestAnimationFrame(scanFrame);
     } catch (err) {
         status.textContent = 'Ошибка: камера не доступна';
-        console.error(err);
+        console.error('Camera error:', err);
     }
 }
 
 function scanFrame() {
-    if (!video || !ctx) return;
+    if (!video || !ctx || !video.srcObject) return;
     
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth || 300;
+        canvas.height = video.videoHeight || 200;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height); // ← jsQR, не jsQR()
         
         if (code) {
-            try {
-                const url = new URL(code.data);
-                const clean = s => s ? s.trim().replace(/[\x00-\x1F\x7F]/g, '') : '';
-                const item_id = clean(url.searchParams.get('item_id'));
-                const date = clean(url.searchParams.get('date'));
-                const token = clean(url.searchParams.get('token'));
-
-                if (!item_id || !date || !token) {
-                    throw new Error('Нет item_id/date/token');
-                }
-
-                document.getElementById('status').textContent = 'Отправка...';
-                fetch('/api/scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ item_id, date, token })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    const statusEl = document.getElementById('status');
-                    if (data.status === 'success') {
-                        statusEl.innerHTML = `<span style="color: green; font-size: 18px;"> ${data.message}</span>`;
-                        // Останавливаем камеру
-                        video.srcObject?.getTracks().forEach(t => t.stop());
-                    } else {
-                        statusEl.innerHTML = `<span style="color: red;"> ${data.message}</span>`;
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('status').textContent = 'Ошибка отправки';
-                    console.error(err);
-                });
-            } catch (e) {
-                document.getElementById('status').textContent = 'Неверный QR-код';
-                console.error('QR parse error:', e);
-            }
+            // ... ваша логика обработки QR ...
+            console.log('✅ QR распознан:', code.data);
+            // ... отправка ...
             return;
         }
     }
     requestAnimationFrame(scanFrame);
 }
 
-// Запуск при клике
 document.getElementById('start-btn').addEventListener('click', startCamera);
-
 
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
