@@ -1,7 +1,7 @@
 
 class TeacherScheduleApp {
     constructor() {
-        this.currentDate = new Date(2025, 9, 1); // Октябрь 2025
+        this.currentDate = new Date(); 
         this.selectedDate = null;
         this.fullSchedule = {}; // { "2025-10-01": [...] }
         this.semesterStart = new Date(2025, 8, 1); // 1 сентября 2025 (месяцы с 0!)
@@ -140,7 +140,7 @@ class TeacherScheduleApp {
                 </div>
                 <div class="class-actions">
                     <button class="edit-btn" onclick="app.editClass('${key}', ${e.id})">Изменить</button>
-                    <button class="delete-btn" onclick="app.deleteClass('${key}', ${e.id})">Удалить</button>
+                    <button class="delete-btn" onclick="app.deleteClass('${key}', ${Number(e.id)})">Удалить</button>
                 </div>
             </div>
         `).join('');
@@ -241,7 +241,8 @@ class TeacherScheduleApp {
         if (!item) return;
 
         document.getElementById('teacher-editClassName').value = item.subject || item.name;
-        document.getElementById('teacher-editClassTime').value = item.time;
+        const timeValue = `${item.start_time}|${item.end_time}`;
+        document.getElementById('teacher-editClassTime').value = timeValue;
         document.getElementById('teacher-editClassGroup').value = item.group || item.group_name;
 
         this.editingClassId = id;

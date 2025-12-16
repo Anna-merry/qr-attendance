@@ -155,9 +155,9 @@ def qr_fullscreen(item_id):
     print("DEBUG: token (first 50) =", token[:50])
     try:
         decoded = serializer.loads(token)
-        print("✅ Token verify OK →", repr(decoded))
+        print("Token verify OK →", repr(decoded))
     except Exception as e:
-        print("❌ Token verify FAILED:", e)
+        print("Token verify FAILED:", e)
 
     return render_template('qr_fullscreen.html', 
                          item_id=item_id, 
@@ -196,7 +196,7 @@ def api_scan():
 
     try:
         # Проверяем токен
-        token_data = serializer.loads(token, max_age=300)  
+        token_data = serializer.loads(token, max_age=10)  
         expected_item_id, expected_date = token_data.split(':', 1)
         
         print(f"DEBUG — item_id_str: '{repr(item_id_str)}'")
@@ -345,7 +345,7 @@ def api_add_schedule_item():
 def update_schedule_item(item_id):
     if current_user.role != 'teacher':
         return jsonify({'error': 'Только для преподавателей'}), 403
-
+    
     data = request.get_json()
     subject = data.get('subject')
     group = data.get('group')
@@ -395,12 +395,20 @@ def update_schedule_item(item_id):
 @login_required
 def api_delete_schedule_item(item_id):
     if current_user.role != 'teacher':
-        return jsonify({'error': 'access denied'}), 403
+        return jsonify({'error': 'Только для преподавателей'}), 403
 
-    item = ScheduleItem.query.filter_by(id=item_id, teacher_id=current_user.id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'message': 'Удалено'}), 200
+    item = ScheduleItem.query.filter_by(
+        id=item_id,
+        teacher_id=current_user.id
+    ).first_or_404(description='Занятие не найдено или не принадлежит вам')
+
+    try:
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'message': 'Удалено'}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'Ошибка при удалении'}), 500
 
 # Статистика
 @app.route('/attendance')
@@ -641,8 +649,8 @@ def count_expected_lectures(schedule_item, start_date, end_date):
 def home():
     return render_template('index2.html')
 
-#if __name__ == '__main__':
-  # with app.app_context():
- #      db.create_all()
- #      print("Таблицы созданы!")
-#app.run(debug=True)
+if __name__ == '__main__':
+   with app.app_context():
+      db.create_all()
+      print("Таблицы созданы!")
+app.run(debug=True)

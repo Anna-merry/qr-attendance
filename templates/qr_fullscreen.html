@@ -42,13 +42,13 @@
         <img id="qr-code" 
              src="{{ url_for('qr_image', item_id=item_id, date_str=date_str, token=token) }}"
              alt="QR-код">
-        <div id="countdown">Токен действителен: <span id="seconds">200</span> сек</div>
+        <div id="countdown">Токен действителен: <span id="seconds">10</span> сек</div>
         <button class="back-btn" onclick="window.history.back()">← Вернуться</button>
     </div>
 
     <script>
         function startTimer (){
-            let sec = 300;
+            let sec = 10;
             const interval = setInterval(() => {
             sec--;
             document.getElementById('seconds').textContent = sec;
