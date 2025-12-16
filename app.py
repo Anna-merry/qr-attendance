@@ -400,7 +400,10 @@ def api_delete_schedule_item(item_id):
     item = ScheduleItem.query.filter_by(
         id=item_id,
         teacher_id=current_user.id
-    ).first_or_404(description='Занятие не найдено или не принадлежит вам')
+    ).first()
+
+    if not item:
+        return jsonify({'error': 'Занятие не найдено или не принадлежит вам'}), 404
 
     try:
         db.session.delete(item)

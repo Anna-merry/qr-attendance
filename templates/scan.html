@@ -11,7 +11,7 @@
     <button id="start-btn" class="btn btn-primary">Запустить камеру</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="{{ url_for('static', filename='js/jsQR.min.js') }}"></script>
 
 <script>
 let video;
@@ -59,11 +59,49 @@ function scanFrame() {
         const code = jsQR(imageData.data, canvas.width, canvas.height); // ← jsQR, не jsQR()
         
         if (code) {
-            // ... ваша логика обработки QR ...
-            console.log('✅ QR распознан:', code.data);
-            // ... отправка ...
-            return;
+    try {
+        // 🔹 Парсим URL напрямую
+        const url = new URL(code.data);
+        const item_id = url.searchParams.get('item_id')?.trim();
+        const date = url.searchParams.get('date')?.trim();
+        const token = url.searchParams.get('token')?.trim();
+
+        if (!item_id || !date || !token) {
+            throw new Error('Нет item_id/date/token');
         }
+
+        // 🔹 Отправляем на сервер СРАЗУ
+        document.getElementById('status').textContent = 'Отправка...';
+        fetch('/api/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id, date, token })
+        })
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
+        .then(data => {
+            const statusEl = document.getElementById('status');
+            if (data.status === 'success') {
+                statusEl.innerHTML = `<span style="color: green; font-size: 18px;"> ${data.message}</span>`;
+                // Останавливаем камеру
+                video.srcObject?.getTracks().forEach(t => t.stop());
+            } else {
+                statusEl.innerHTML = `<span style="color: red;"> ${data.message}</span>`;
+            }
+        })
+        .catch(err => {
+            console.error('Ошибка:', err);
+            document.getElementById('status').textContent = ` Ошибка: ${err.message}`;
+        });
+
+    } catch (e) {
+        console.error('QR parse error:', e);
+        document.getElementById('status').textContent = ' Неверный QR-код';
+    }
+    return;
+}
     }
     requestAnimationFrame(scanFrame);
 }
